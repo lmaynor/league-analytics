@@ -306,8 +306,8 @@ button, .cat, .sw, .tile { touch-action: manipulation; }
 @media (min-width: 701px) { #ptr { display: none; } }
 
 /* tonight's players: equal-width cells so the status dots line up */
-.chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 4px; }
 .chip { display: flex; align-items: center; gap: 6px; width: 100%; min-width: 0; white-space: nowrap; }
 .chip .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .chip em { margin-left: auto; padding-left: 4px; }
-@media (max-width: 340px) { .chips { grid-template-columns: 1fr; } }
+@media (max-width: 340px) { .chips { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); } }
