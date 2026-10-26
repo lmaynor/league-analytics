@@ -20,39 +20,57 @@ function tiles(list) {
   return `<div class="tiles" id="tiles" style="--n:${list.length}">${list.map((x, i) => `<button class="tile${i === 0 ? " on" : ""}" onclick="goCard(${i})" aria-label="${esc(x.h)} versus ${esc(x.a)}">
     <span class="tt">${esc(x.h)}</span><b>${x.hw}–${x.aw}${x.t ? `–${x.t}` : ""}</b><span class="tt">${esc(x.a)}</span></button>`).join("")}</div>`;
 }
+const deckStep = (deck) => deck.firstElementChild.offsetWidth + 12;  // card width plus the gap
 window.goCard = (i) => {
-  const deck = $("#deck"), card = deck?.children[i];
-  if (!card) return;
+  const deck = $("#deck");
+  if (!deck) return;
   haptic(); S.quiet = true; setTimeout(() => { S.quiet = false; }, 700);
-  if (isPhone()) { deck.scrollTo({ left: card.offsetLeft - 12, behavior: "smooth" }); window.scrollTo({ top: Math.max(0, deck.getBoundingClientRect().top + scrollY - 70), behavior: "smooth" }); }
-  else card.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (isPhone()) {
+    const shift = deck.querySelector(":scope > [data-clone]") ? 1 : 0;
+    deck.scrollTo({ left: deckStep(deck) * (i + shift), behavior: "smooth" });
+    window.scrollTo({ top: Math.max(0, deck.getBoundingClientRect().top + scrollY - 70), behavior: "smooth" });
+  } else deck.children[i]?.scrollIntoView({ behavior: "smooth", block: "start" });
 };
 let deckRO, deckScroll;
 function wireDeck() {
   deckRO?.disconnect();
   const deck = $("#deck");
-  if (deckScroll && deckScroll.el) deckScroll.el.removeEventListener("scroll", deckScroll.fn);
+  if (deckScroll?.el) { deckScroll.el.removeEventListener("scroll", deckScroll.fn); deckScroll.el.removeEventListener("scrollend", deckScroll.end); }
   if (!deck || !isPhone()) { if (deck) deck.style.height = ""; return; }
-  const cards = [...deck.children], tl = [...document.querySelectorAll("#tiles .tile")];
-  const fit = (card) => { deck.style.height = card.offsetHeight + "px"; };
-  const show = (i) => {
-    if (i === S.cardIx && deck.style.height) return;
+  const real = [...deck.children], n = real.length, tl = [...document.querySelectorAll("#tiles .tile")];
+  if (n > 1) {  // a copy of the last card before the first and of the first after the last makes the swipe loop
+    const copy = (c) => { const k = c.cloneNode(true); k.removeAttribute("id"); k.dataset.clone = "1"; k.setAttribute("aria-hidden", "true"); k.inert = true; return k; };
+    deck.insertBefore(copy(real[n - 1]), real[0]);
+    deck.appendChild(copy(real[0]));
+  }
+  const shift = n > 1 ? 1 : 0, step = deckStep(deck);
+  const fit = (i) => { deck.style.height = real[i].offsetHeight + "px"; };
+  const mark = (i) => {  // i is the real card index
+    if (i === S.cardIx) return;
     if (S.cardIx >= 0 && !S.quiet) haptic();  // a swipe landed on a new card
     S.cardIx = i;
     tl.forEach((t, k) => t.classList.toggle("on", k === i));
-    tl[i]?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
-    fit(cards[i]);
   };
-  const nearest = () => { const step = cards[0].offsetWidth + 12; return Math.max(0, Math.min(cards.length - 1, Math.round(deck.scrollLeft / step))); };
-  const fn = () => show(nearest());
-  deck.addEventListener("scroll", fn, { passive: true });
-  deckScroll = { el: deck, fn };
-  deckRO = new ResizeObserver(() => fit(cards[S.cardIx || 0]));
-  cards.forEach((c) => deckRO.observe(c));
-  const start = Math.min(S.cardIx || 0, cards.length - 1);
-  S.cardIx = -1; show(start);
-  if (start) deck.scrollTo({ left: cards[start].offsetLeft - 12 });
+  const domIndex = () => Math.max(0, Math.min(n - 1 + 2 * shift, Math.round(deck.scrollLeft / step)));
+  const realOf = (k) => (n < 2 ? 0 : k === 0 ? n - 1 : k === n + 1 ? 0 : k - 1);
+  const jump = (k) => { deck.style.scrollSnapType = "none"; deck.scrollLeft = step * k; setTimeout(() => { deck.style.scrollSnapType = ""; }, 60); };
+  // Resizing the deck while a swipe is still gliding can cancel the snap, so heights and the loop jump wait until it stops.
+  const settle = () => {
+    const k = domIndex(), i = realOf(k);
+    if (n > 1 && (k === 0 || k === n + 1)) jump(i + shift);
+    mark(i); fit(i);
+  };
+  let timer;
+  const onScroll = () => { mark(realOf(domIndex())); clearTimeout(timer); timer = setTimeout(settle, 140); };
+  deck.addEventListener("scroll", onScroll, { passive: true });
+  deck.addEventListener("scrollend", settle);
+  deckScroll = { el: deck, fn: onScroll, end: settle };
+  deckRO = new ResizeObserver(() => fit(S.cardIx >= 0 ? S.cardIx : 0));
+  real.forEach((c) => deckRO.observe(c));
+  const start = Math.min(Math.max(S.cardIx ?? 0, 0), n - 1);
+  S.cardIx = -1; mark(start); fit(start); jump(start + shift);
 }
+matchMedia("(max-width: 700px)").addEventListener("change", () => { if (S.tab === "scoreboard") scoreboard(); });  // rebuild the deck (or drop its copies) when the width crosses the phone breakpoint
 
 function scoreCard(m, d, lm) {
   const rev = Object.fromEntries(d.cats.map((c) => [c.id, c.reverse]));

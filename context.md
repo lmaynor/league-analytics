@@ -70,7 +70,7 @@ Each feature writes its own file (`live.json`, `records.json`, `cheerios.json`, 
 
 - `TABS` registry in `core.js`; views with sub-views use `subnav()` and render into `#panel`. Hash routes: `#scoreboard`, `#standings/power`, `#history/supers`. Old links (`#sweat`, `#scores`, `#cats`, `#regret`) still resolve.
 - Scoreboard has Auto / Compact / Full detail (Auto switches to Full on the final day) and a Week dropdown for the current season's earlier weeks; past weeks show final scores.
-- Phones (<=700px): bottom tab bar, matchup tile strip + snap-scroll card deck, pull to refresh, haptic ticks (Android vibrate; iOS checkbox-switch trick), safe-area padding. Installable (manifest + apple-touch-icon).
+- Phones (<=700px): bottom tab bar, matchup tile strip + snap-scroll card deck that loops (copies of the last and first card sit at the ends and the deck jumps back once the swipe stops; deck height and the jump wait for the scroll to settle), pull to refresh, haptic ticks (Android vibrate; iOS checkbox-switch trick), safe-area padding. Installable (manifest + apple-touch-icon).
 - Light/dark theme: `data-theme` set before paint; follows the system until the user taps the toggle. Colors are tokens in `:root` and `:root[data-theme="dark"]`.
 - Test at phone widths with an iframe harness; headless Chrome cannot go narrower than ~500px as a window, and does not deliver scroll or rAF events promptly.
 
