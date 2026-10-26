@@ -24,7 +24,7 @@
 <link rel="icon" type="image/png" href="img/favicon.png?v=2028bc29">
 <link rel="apple-touch-icon" href="img/apple-touch-icon.png?v=87fdd9ba">
 <link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=8388364f">
+<link rel="stylesheet" href="style.css?v=fb70c4af">
 </head>
 <body>
 <header class="top">
@@ -38,9 +38,14 @@
   <div class="ctl">
     <label>Season <select id="season"></select></label>
   </div>
-  <button id="theme" type="button" aria-label="Switch to dark mode">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path class="moon" d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/><g class="sun"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></g></svg>
-  </button>
+  <div class="tools">
+    <button id="refresh" type="button" aria-label="Refresh data">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>
+    </button>
+    <button id="theme" type="button" aria-label="Switch to dark mode">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path class="moon" d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/><g class="sun"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></g></svg>
+    </button>
+  </div>
 </header>
 <div id="ptr" aria-live="polite"></div>
 <main id="view"></main>
@@ -72,6 +77,6 @@
 <script src="js/tab-categories.js?v=daf5feeb"></script>
 <script src="js/tab-cheerios.js?v=4f8f2ef3"></script>
 <script src="js/tab-history.js?v=3123f446"></script>
-<script src="js/main.js?v=b6702953"></script>
+<script src="js/main.js?v=e234b7d2"></script>
 </body>
 </html>

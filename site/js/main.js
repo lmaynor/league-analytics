@@ -24,7 +24,20 @@ async function init() {
 }
 
 /* pull down at the top of the page to reload the data, like a native list */
+/* the small pill at the top: "Pull to refresh", "Updating", "Up to date" */
+const toast = (txt, show) => { const p = $("#ptr"); p.textContent = txt; p.classList.toggle("show", show); };
+
+/* if the page itself was redeployed, reload it so the new scripts and styles load too */
+async function pageIsStale() {
+  try {
+    const html = await (await fetch("index.html?t=" + Date.now(), { cache: "no-store" })).text();
+    const hashes = (t) => [...t.matchAll(/(?:src|href)="((?:js\/|img\/|style)[^"]*\?v=\w+)"/g)].map((x) => x[1]).sort().join();
+    return hashes(html) !== hashes(document.documentElement.outerHTML);
+  } catch { return false; }
+}
+
 async function refreshData() {
+  if (await pageIsStale()) { location.reload(); return; }
   const t = Date.now(), fresh = (u) => j(u + "?t=" + t);
   const [meta, live, hist, recs, che, sup] = await Promise.all([fresh("data/meta.json"), fresh("data/live.json"), fresh("data/history.json"), fresh("data/records.json"), fresh("data/cheerios.json"), fresh("data/superlatives.json")]);
   Object.assign(S, { meta, live, history: hist, records: recs, cheerios: che, supers: sup, seasons: {} });
@@ -32,9 +45,8 @@ async function refreshData() {
   render();
 }
 (function pullToRefresh() {
-  const ptr = $("#ptr");
   let y0 = null, dy = 0, armed = false;
-  const say = (txt, show) => { ptr.textContent = txt; ptr.classList.toggle("show", show); };
+  const say = toast;
   addEventListener("touchstart", (e) => { y0 = window.scrollY <= 0 && e.touches.length === 1 ? e.touches[0].clientY : null; dy = 0; armed = false; }, { passive: true });
   addEventListener("touchmove", (e) => {
     if (y0 == null) return;
@@ -48,5 +60,14 @@ async function refreshData() {
     y0 = null;
   });
 })();
+
+/* refresh button in the header: the same reload as pulling down, for when the gesture is not handy */
+$("#refresh").onclick = async () => {
+  const b = $("#refresh");
+  if (b.classList.contains("spin")) return;
+  haptic(); b.classList.add("spin"); toast("Updating", true);
+  await refreshData();
+  b.classList.remove("spin"); toast("Up to date", true); setTimeout(() => toast("", false), 1200);
+};
 
 init();

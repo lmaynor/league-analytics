@@ -287,7 +287,6 @@ button, .cat, .sw, .tile { touch-action: manipulation; }
   padding: 6px 14px; border-radius: 99px; background: var(--color-graphite); color: var(--color-graphite-ink); font: 500 13px var(--font-display);
   transition: transform .2s ease-out, opacity .2s ease-out; }
 #ptr.show { transform: translate(-50%, 0); opacity: 1; }
-@media (min-width: 701px) { #ptr { display: none; } }
 
 @media (max-width: 340px) { .chips { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); } }
 
@@ -319,17 +318,17 @@ td.l b { display: block; }
 :root[data-theme="dark"] .logo { filter: brightness(.92); }
 
 /* theme toggle */
-#theme { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--color-rule-2); border-radius: 50%;
+#theme, #refresh { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--color-rule-2); border-radius: 50%;
   background: var(--color-key-face); color: var(--text); cursor: pointer; padding: 0; transition: transform var(--dur-micro) ease-out; }
-#theme svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#theme svg, #refresh svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 #theme .sun { display: none; }
 :root[data-theme="dark"] #theme .sun { display: inline; }
 :root[data-theme="dark"] #theme .moon { display: none; }
-#theme:active { transform: scale(.92); }
-#theme:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+#theme:active, #refresh:active { transform: scale(.92); }
+#theme:focus-visible, #refresh:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 @media (max-width: 700px) {
   .brand { order: 0; }
-  #theme { order: 1; margin-left: auto; }
+  .tools { order: 1; margin-left: auto; }
   .ctl { order: 2; }
 }
 @media (prefers-reduced-motion: reduce) { #theme { transition: none; } }
@@ -358,3 +357,8 @@ th.rank, td.rank { white-space: nowrap; width: 1%; min-width: 2.4em; text-align:
   nav button { padding: 7px 9px; font-size: 13px; }
   .ctl { gap: 8px; }
 }
+
+.tools { display: flex; gap: 8px; }
+#refresh.spin svg { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #refresh.spin svg { animation: none; } }
