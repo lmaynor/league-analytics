@@ -41,6 +41,7 @@ function oddsCard(m) {
     <div class="cats">${cats.map((c) => catRow(m, c, maxSweat)).join("")}</div>
     <div class="tonight">${side(m.home_side, m.home_name, "h")}${side(m.away_side, m.away_name, "a")}</div>
     ${cheeriosBlock({ home: m.home }, { name: m.home_name }, { name: m.away_name })}
+    ${swapsBlock({ home: m.home }, { name: m.home_name }, { name: m.away_name })}
   </div>`;
 }
 

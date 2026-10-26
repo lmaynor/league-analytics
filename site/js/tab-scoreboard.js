@@ -68,7 +68,7 @@ function scoreCard(m, d, lm) {
       <div class="tm a ${m.aw > m.hw ? "" : "dim"}">${esc(a.name)}<small>${esc(a.owner_name)}</small></div></div>${odds}</div>
     <div class="cats">${d.cats.map((c) => { const l = lead(c.id);
       return `<div class="cat sb" style="cursor:default"><div class="v h ${l > 0 ? "win" : l < 0 ? "lose" : ""}">${fmt(m.hs[c.id], c.id)}</div>
-        <div class="mid"><div class="lab">${c.label}${odds_(lm, c.id)}</div></div><div class="v a ${l < 0 ? "win" : l > 0 ? "lose" : ""}">${fmt(m.as[c.id], c.id)}</div></div>`; }).join("")}</div>${cheeriosBlock(m, h, a)}</div>`;
+        <div class="mid"><div class="lab">${c.label}${odds_(lm, c.id)}</div></div><div class="v a ${l < 0 ? "win" : l > 0 ? "lose" : ""}">${fmt(m.as[c.id], c.id)}</div></div>`; }).join("")}</div>${cheeriosBlock(m, h, a)}${swapsBlock(m, h, a)}</div>`;
 }
 
 function scoreboard() {
@@ -96,6 +96,16 @@ function scoreboard() {
   wireDeck();
 }
 TABS.scoreboard = scoreboard;
+
+/* Bench Regret: swaps that would be flipping the matchup if a benched player had started instead */
+function swapsBlock(m, h, a) {
+  const sw = S.swaps?.matchups?.find((x) => x.home === m.home);
+  if (!sw) return "";
+  const rec = (r) => `${r[0]}-${r[1]}${r[2] ? `-${r[2]}` : ""}`;
+  const line = (list, t) => list.map((x) => `<div class="rl"><b>${esc(t.name)}</b>: start <b>${esc(x.in)}</b> over ${esc(x.out)} on ${x.day} and it's ${rec(x.to)} instead of ${rec(x.from)}.</div>`).join("");
+  const body = line(sw.home_swaps, h) + line(sw.away_swaps, a);
+  return body ? `<div class="cheerios swaps"><h4>Bench Regret</h4>${body}</div>` : "";
+}
 
 /* Red Cheerios for the week so far: who missed starts and what a healthy lineup would have meant */
 function cheeriosBlock(m, h, a) {

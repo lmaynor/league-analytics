@@ -15,6 +15,7 @@ import os
 RAW = ROOT / "data" / "raw"
 CURRENT = current_season()
 HEALTHY = (None, "ACTIVE", "NORMAL")
+LINEUP_SLOTS = (0, 1, 2, 3, 4, 5, 6, 11)  # PG SG SF PF C G F UTIL
 DAILY_STATS = ["0", "1", "2", "3", "6", "11", "13", "14", "15", "16", "17"]
 REFRESH_DAYS = 3  # re-pull the most recent days of the current season (late stat corrections)
 WORKERS = 6
@@ -101,7 +102,8 @@ def compact_day(raw, sp):
             # an empty line (stats {}) is how ESPN reports a player who did not play that day
             played = bool(line and line.get("scoringPeriodId") == sp and line_stats and line_stats.get("42", 1) != 0)
             stats = {k: (line_stats.get(k) or 0) for k in DAILY_STATS} if played else None
-            rows.append([e["playerId"], p["fullName"], p.get("proTeamId"), e["lineupSlotId"], int(played), stats, p.get("injuryStatus")])
+            elig = [x for x in p.get("eligibleSlots", []) if x in LINEUP_SLOTS]  # which starting slots he can fill
+            rows.append([e["playerId"], p["fullName"], p.get("proTeamId"), e["lineupSlotId"], int(played), stats, p.get("injuryStatus"), elig])
         teams[str(t["id"])] = rows
     return {"sp": sp, "teams": teams}
 

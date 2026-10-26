@@ -21,7 +21,7 @@ pipeline/
   cats.py           stat ids, display order, spread model
   matchups.py       shared parsing: schedule entries -> category results
   should_run.py     CI gate: only run while an NBA game is on
-  features/         standings, history, records, live, cheerios, superlatives
+  features/         standings, history, records, live, cheerios, superlatives, race, swaps
 site/
   index.html        shell, footer "How This Works", tab bar, theme/refresh buttons
   style.css         Cobalt theme, dark theme, phone shell
@@ -42,6 +42,8 @@ Each feature writes its own file (`live.json`, `records.json`, `cheerios.json`, 
 - **xWin** = each week, matchups your totals would win against all other teams, summed. **Luck** = actual wins - xWin.
 - **Power** = 60% season category win rate + 40% last four weeks.
 - **Red Cheerios:** a "miss" is a starter in an active slot on a day his NBA team played who did not play. Injuries and rest days both count. Each miss adds his per-game average back to the team's totals and the week is re-scored against the real opponent. Only the last two seasons have daily rosters (`DAILY_SEASONS`).
+- **Race for Last:** the rest of the regular season is simulated 10,000 times from category strength (this season blended with the owner's share last season) and the real schedule; the live week uses live odds. The win model (K = 5.73) was fit on 2018-2026 matchups. Finished seasons use the real order.
+- **Bench Regret:** for each day of the live week, a benched player who played is swapped into the slot of a starter he was eligible to replace (`eligibleSlots` is stored in the daily rows); swaps that improve the matchup result are shown.
 - **Records / Superlatives:** single-week records skip All-Star breaks and two-week finals; the week in progress is excluded. Superlatives count games in a starting slot; the current season is held back until it has 14 days.
 
 ## ESPN quirks learned the hard way
