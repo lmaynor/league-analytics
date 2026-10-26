@@ -17,8 +17,11 @@ class ESPNClient:
     def __init__(self, league_id=None, espn_s2=None, swid=None):
         self.league_id = league_id or os.environ["LEAGUE_ID"]
         self.session = requests.Session()
-        self.session.cookies.set("espn_s2", espn_s2 or os.environ.get("ESPN_S2", ""))
-        self.session.cookies.set("SWID", swid or os.environ.get("SWID", ""))
+        # Public leagues need no cookies; sending empty ones makes ESPN return 401.
+        for name, val in (("espn_s2", espn_s2 or os.environ.get("ESPN_S2")),
+                          ("SWID", swid or os.environ.get("SWID"))):
+            if val:
+                self.session.cookies.set(name, val)
         self.session.headers["User-Agent"] = "league-analytics/1.0"
 
     def _get(self, url, params=None, headers=None, retries=4):

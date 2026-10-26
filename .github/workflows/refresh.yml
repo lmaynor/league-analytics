@@ -35,13 +35,6 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      # past seasons' tidy tables + coaching solves don't change; keep them between runs
-      - uses: actions/cache@v4
-        with:
-          path: data/tidy
-          key: tidy-${{ hashFiles('pipeline/normalize.py', 'pipeline/coaching.py', 'pipeline/expected.py', 'pipeline/projections.py', 'pipeline/simulate.py', 'pipeline/model_params.json', 'requirements.txt') }}-${{ github.run_id }}
-          restore-keys: tidy-${{ hashFiles('pipeline/normalize.py', 'pipeline/coaching.py', 'pipeline/expected.py', 'pipeline/projections.py', 'pipeline/simulate.py', 'pipeline/model_params.json', 'requirements.txt') }}-
-
       - name: Fetch from ESPN and build analytics
         env:
           LEAGUE_ID: ${{ secrets.LEAGUE_ID }}
@@ -54,7 +47,7 @@ jobs:
         run: |
           git config user.name "league-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/raw data/history site/data site/img site/index.html config
+          git add data/raw site config
           git diff --cached --quiet || git commit -m "Data refresh $(date -u +'%Y-%m-%d %H:%M') UTC"
           # someone else may have pushed meanwhile; replay this refresh on top (its data wins)
           for i in 1 2 3; do

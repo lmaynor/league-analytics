@@ -1,0 +1,9 @@
+{
+  "name": "League Analytics",
+  "short_name": "League",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f8fafd",
+  "theme_color": "#f8fafd",
+  "icons": [{ "src": "img/logo.png", "sizes": "256x256", "type": "image/png", "purpose": "any" }]
+}
