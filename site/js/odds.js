@@ -80,10 +80,13 @@ function detail(m, c) {
     <div>${esc(m.away_name)}, ${watchLabel}: ${names(c.watch_a)}</div></div>`;
 }
 
+/* "Shai Gilgeous-Alexander" -> "S. Gilgeous-Alexander"; suffixes like Jr. stay put */
+const initialed = (n) => { const w = n.trim().split(/\s+/); return w.length > 1 ? `${w[0][0]}. ${w.slice(1).join(" ")}` : n; };
+
 function side(s, name, cls) {
   const chips = s.tonight.slice(0, 12).map((p) => {
-    const t = p.status === "upcoming" ? new Date(p.t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : p.status === "live" ? "live" : "done";
-    return `<span class="chip ${p.active ? "" : "bench"}" title="${esc(p.name)}: ${p.pro} v ${p.opp}${p.active ? "" : " (bench)"}"><span class="dot ${p.status}"></span>${esc(p.name)} <em>${t}</em></span>`;
+    const t = p.status === "upcoming" ? new Date(p.t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
+    return `<span class="chip" title="${esc(p.name)}: ${p.pro} v ${p.opp}"><span class="dot ${p.status}"></span><span class="nm">${esc(initialed(p.name))}</span>${t ? `<em>${t}</em>` : ""}</span>`;
   }).join("");
   return `<div><h4 class="${cls}">${esc(name)} · ${s.player_games_left} player-games left</h4><div class="chips">${chips || '<span class="sub">No lineup players have a game today</span>'}</div></div>`;
 }
