@@ -9,6 +9,7 @@ import time
 from collections import defaultdict
 
 from cats import RATIO, REVERSE, label
+from cats import label
 from matchups import CURRENT, cat_result, pct_value
 
 ACTIVE_SLOTS = {0, 1, 2, 3, 4, 5, 6, 11}  # PG SG SF PF C G F UTIL; 12 = bench, 13 = IR
@@ -17,9 +18,32 @@ MIN_GAMES_FOR_BASELINE = 3
 GAME_MS = 3 * 3600 * 1000  # a game counts as over ~3h after tip, even if ESPN has not marked it official
 
 
-def _value(m):
-    return (m["0"] + 1.2 * m["6"] + 1.5 * m["3"] + 3 * m["2"] + 3 * m["1"] + m["17"] - 1.2 * m["11"]
-            + 2 * (m["13"] - 0.46 * m["14"]) + 1.2 * (m["15"] - 0.8 * m["16"]))
+def cat_zscores(base):
+    """{pid: {cat label: z}}: how far each player's per-game output sits above the pool in each category.
+
+    Turnovers are flipped (fewer is better). FG% and FT% use makes above what the league rate would give."""
+    fg = sum(m["13"] for m in base.values()) / max(sum(m["14"] for m in base.values()), 1)
+    ft = sum(m["15"] for m in base.values()) / max(sum(m["16"] for m in base.values()), 1)
+    feats = {pid: {label(0): m["0"], label(6): m["6"], label(3): m["3"], label(2): m["2"], label(1): m["1"],
+                   label(17): m["17"], label(11): -m["11"], label(19): m["13"] - fg * m["14"],
+                   label(20): m["15"] - ft * m["16"]} for pid, m in base.items()}
+    z = {pid: {} for pid in base}
+    for cat in next(iter(feats.values())):
+        vals = [f[cat] for f in feats.values()]
+        mean = sum(vals) / len(vals)
+        sd = (sum((v - mean) ** 2 for v in vals) / len(vals)) ** 0.5 or 1
+        for pid, f in feats.items():
+            z[pid][cat] = (f[cat] - mean) / sd
+    return z
+
+
+def strengths(z, m, games):
+    """The categories a player is best in, with what his missed games cost (counting stats only)."""
+    ids = {label(0): "0", label(6): "6", label(3): "3", label(2): "2", label(1): "1", label(17): "17"}
+    top = sorted(z.items(), key=lambda kv: -kv[1])[:2]
+    name = lambda c: "Low TO" if c == label(11) else c
+    return [{"cat": name(c), "lost": round(m[ids[c]] * games) if c in ids else None} for c, v in top if v > 0.4] or \
+           [{"cat": name(top[0][0]), "lost": None}]
 
 
 def load_days(raw, season):
@@ -97,10 +121,12 @@ def build_season(season, data, rows, teams, days, games_done, fallback=None):
     for pid, v in (fallback or {}).items():
         base.setdefault(pid, v)
     missed = missed_by_team_day(days, games_done, base)
+    zs = cat_zscores(base)
+    zsum = {pid: sum(z.values()) for pid, z in zs.items()}
     cids = [c["id"] for c in data["cats"]]
     tstat = {str(t): dict(name=teams[t]["name"], owner=teams[t]["owner_name"], games=0, own_cost=0.0, gifts=0.0,
                           cats_cost=0, reg=[0, 0, 0], healthy=[0, 0, 0], who=defaultdict(lambda: [0, 0.0])) for t in teams}
-    ouch, player_totals = [], defaultdict(lambda: {"games": 0, "team": "", "value": 0.0, "pts": 0.0})
+    ouch, player_totals = [], defaultdict(lambda: {"games": 0, "team": "", "value": 0.0, "pid": None})
 
     def lost_vec(tid, r):
         vec, names = dict.fromkeys(STAT_IDS, 0.0), []
@@ -108,7 +134,7 @@ def build_season(season, data, rows, teams, days, games_done, fallback=None):
             for pid, name in missed.get(str(tid), {}).get(sp, []):
                 for k in STAT_IDS:
                     vec[k] += base[pid][k]
-                names.append((name, _value(base[pid]), base[pid]["0"]))
+                names.append((name, zsum[pid], pid))
         return vec, names
 
     live = []
@@ -144,13 +170,13 @@ def build_season(season, data, rows, teams, days, games_done, fallback=None):
                 for i, x in enumerate((ares, hres)):
                     tgt = ts["reg"] if i == 0 else ts["healthy"]
                     tgt[0 if x == 1 else 1 if x == 0 else 2] += 1
-                for name, val, pts in names:
+                for name, val, pid in names:
                     ts["who"][name][0] += 1
                     ts["who"][name][1] = val
                     player_totals[name]["games"] += 1
                     player_totals[name]["team"] = ts["name"]
                     player_totals[name]["value"] = val
-                    player_totals[name]["pts"] = pts
+                    player_totals[name]["pid"] = pid
             if hres > ares:
                 top = sorted(set((n, v) for n, v, _ in names), key=lambda x: -x[1])[:3]
                 ouch.append({"season": season, "mp": r["mp"], "team": ts["name"], "owner": ts["owner"], "opp": teams[opp]["name"],
@@ -168,7 +194,8 @@ def build_season(season, data, rows, teams, days, games_done, fallback=None):
     players = sorted(({"name": n, **v} for n, v in player_totals.items()), key=lambda p: -p["games"] * p["value"])[:10]
     ouch.sort(key=lambda o: (-o["swing"], -o["games"]))
     return {"teams": out_teams, "ouch": ouch[:12], "players": [{"name": p["name"], "team": p["team"], "games": p["games"],
-            "pts": round(p["pts"], 1)} for p in players], "complete": data["complete"], "live": live}
+            "hits": strengths(zs[p["pid"]], base[p["pid"]], p["games"])} for p in players],
+            "complete": data["complete"], "live": live}
 
 
 def build(per_season, raw):

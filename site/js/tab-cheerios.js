@@ -21,8 +21,8 @@ function cheerios() {
       ${a.ouch.map((o) => `<tr><td class="l">${o.season} wk ${o.mp}${o.playoff ? " (playoffs)" : ""}</td><td class="l"><b>${esc(o.team)}</b></td><td class="l">${esc(o.opp)}</td><td>${o.actual}</td><td>${o.healthy}</td><td>${o.games}</td><td class="l sub">${o.players.map(esc).join(", ")}</td></tr>`).join("")}
     </table></div>` : ""}
     ${a.players.length ? `<h2>Most Starter Games Missed</h2><div class="card tbl-wrap"><table class="sortable">
-      <tr><th class="l">Player</th><th class="l">Team</th><th>Games Missed</th><th>Usual Pts</th></tr>
-      ${a.players.map((p) => `<tr><td class="l"><b>${esc(p.name)}</b></td><td class="l">${esc(p.team)}</td><td>${p.games}</td><td>${p.pts}</td></tr>`).join("")}
+      <tr><th class="l">Player</th><th class="l">Team</th><th>Games Missed</th><th class="l">Hurts Most In</th></tr>
+      ${a.players.map((p) => `<tr><td class="l"><b>${esc(p.name)}</b></td><td class="l">${esc(p.team)}</td><td>${p.games}</td><td class="l">${p.hits.map((h) => h.lost ? `${h.cat} −${h.lost}` : h.cat).join(", ")}</td></tr>`).join("")}
     </table></div>` : ""}`;
 }
 TABS.cheerios = cheerios;
