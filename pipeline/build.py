@@ -13,7 +13,7 @@ import sys
 import traceback
 
 from espn_client import ROOT
-from features import history, live, records, cheerios, standings
+from features import cheerios, history, live, records, standings, superlatives
 from matchups import CURRENT
 
 RAW = ROOT / "data" / "raw"
@@ -114,6 +114,7 @@ def main():
         return {"live.json": out or {"active": False}}
     written += run("live", only, do_live)
     written += run("cheerios", only, lambda: {"cheerios.json": cheerios.build(per_season, RAW)})
+    written += run("superlatives", only, lambda: {"superlatives.json": superlatives.build(per_season, RAW)})
     stamp_assets()
     write("meta.json", {"current": CURRENT, "seasons": sorted(per_season), "league_name": league_name()})
     print(f"wrote {len(written) + 1} files to {OUT}")

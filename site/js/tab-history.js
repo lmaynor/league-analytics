@@ -2,8 +2,8 @@
 function history() {
   const H = S.history, owners = H.owners;
   S.hview = S.hview || "owners";
-  const seg = `<div class="toolbar"><div class="seg">${[["owners", "Owners"], ["records", "Records"], ["h2h", "Head to Head"]].map(([k, l]) => `<button class="${S.hview === k ? "on" : ""}" onclick="S.hview='${k}';history()">${l}</button>`).join("")}</div></div>`;
-  const body = { owners: histOwners, records: histRecords, h2h: histH2H }[S.hview](H, owners);
+  const seg = `<div class="toolbar"><div class="seg">${[["owners", "Owners"], ["records", "Records"], ["supers", "Superlatives"], ["h2h", "Head to Head"]].map(([k, l]) => `<button class="${S.hview === k ? "on" : ""}" onclick="S.hview='${k}';history()">${l}</button>`).join("")}</div></div>`;
+  const body = { owners: histOwners, records: histRecords, supers: histSupers, h2h: histH2H }[S.hview](H, owners);
   $("#view").innerHTML = `<h1>All-Time</h1><div class="sub">${owners.length} owners across ${H.owners.flatMap((o) => o.seasons).map((s) => s.season).filter((v, i, a) => a.indexOf(v) === i).length} seasons</div>${seg}${body}`;
   markSortable($("#view"), ["Finish by Season"]);
 }
@@ -22,12 +22,14 @@ function histOwners(H, owners) {
   </table></div><div class="sub" style="margin-top:6px">Finish strip: final place each season. Filled = champion, tinted = top three.</div>`;
 }
 
+const recCard = (r) => `<div class="card rec${r.new ? " new" : ""}">${r.new ? '<span class="newtag">New this season</span>' : ""}<div class="rt">${esc(r.title)}</div><div class="rv">${esc(r.value)}</div>
+  <div class="rw"><b>${esc(r.who)}</b>${r.team ? ` <span class="sub">${esc(r.team)}</span>` : ""}</div>
+    <div class="sub">${esc(r.when)}${r.vs ? ` vs ${esc(r.vs)}` : ""}</div><div class="sub rb">${esc(r.blurb)}</div></div>`;
+const recGroup = (list, g, title, note) => { const rs = list.filter((r) => r.group === g); return rs.length ? `<h2>${title}</h2>${note ? `<div class="sub">${note}</div>` : ""}<div class="grid recs">${rs.map(recCard).join("")}</div>` : ""; };
+
 function histRecords(H) {
   const ties = Object.values(H.tied_cats).reduce((a, b) => a + b, 0);
-  const card = (r) => `<div class="card rec${r.new ? " new" : ""}">${r.new ? '<span class="newtag">New this season</span>' : ""}<div class="rt">${esc(r.title)}</div><div class="rv">${esc(r.value)}</div>
-    <div class="rw"><b>${esc(r.who)}</b>${r.team ? ` <span class="sub">${esc(r.team)}</span>` : ""}</div>
-    <div class="sub">${esc(r.when)}${r.vs ? ` vs ${esc(r.vs)}` : ""}</div><div class="sub rb">${esc(r.blurb)}</div></div>`;
-  const group = (g, title, note) => { const rs = (S.records?.records || []).filter((r) => r.group === g); return rs.length ? `<h2>${title}</h2><div class="sub">${note}</div><div class="grid recs">${rs.map(card).join("")}</div>` : ""; };
+  const group = (g, title, note) => recGroup(S.records?.records || [], g, title, note);
   return group("fame", "Hall of Fame", "Single-week records skip All-Star breaks and two-week finals.")
     + group("shame", "Hall of Shame", "Everything the league would rather forget.")
     + group("fun", "Strange but True", "")
@@ -38,6 +40,14 @@ function histRecords(H) {
     <h2>9-0 Sweeps</h2>
     <div class="card tbl-wrap"><table><tr><th class="l">When</th><th class="l">Winner</th><th class="l">Victim</th></tr>
       ${H.sweeps.slice(-8).reverse().map((s) => `<tr><td class="l">${s.season} wk ${s.mp}</td><td class="l">${esc(s.winner)}</td><td class="l">${esc(s.loser)}</td></tr>`).join("") || '<tr><td class="l" colspan="3">None yet</td></tr>'}</table></div>`;
+}
+
+function histSupers() {
+  const list = S.supers?.records || [];
+  if (!list.length) return `<div class="empty"><p>No superlatives yet. They need daily rosters, which the nightly refresh collects.</p></div>`;
+  const seasons = [...new Set(list.map((r) => r.season))].sort().reverse();
+  return `<div class="sub">Player awards from the daily rosters. Totals count games a player spent in a starting slot.</div>`
+    + seasons.map((y) => `<h2>${y}</h2>` + recGroup(list.filter((r) => r.season === y), "yearbook", "Yearbook", "") + recGroup(list.filter((r) => r.season === y), "kings", "Category Kings", "") + recGroup(list.filter((r) => r.season === y), "shame", "Hall of Shame", "")).join("");
 }
 
 function histH2H(H, owners) {

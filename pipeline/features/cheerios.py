@@ -9,7 +9,6 @@ import time
 from collections import defaultdict
 
 from cats import RATIO, REVERSE, label
-from cats import label
 from matchups import CURRENT, cat_result, pct_value
 
 ACTIVE_SLOTS = {0, 1, 2, 3, 4, 5, 6, 11}  # PG SG SF PF C G F UTIL; 12 = bench, 13 = IR
@@ -44,6 +43,12 @@ def strengths(z, m, games):
     name = lambda c: "Low TO" if c == label(11) else c
     return [{"cat": name(c), "lost": round(m[ids[c]] * games) if c in ids else None} for c, v in top if v > 0.4] or \
            [{"cat": name(top[0][0]), "lost": None}]
+
+
+def finished_games(sched):
+    """{(scoring period, NBA team): True} for games that are over (official, or 3h past tip-off)."""
+    now = time.time() * 1000
+    return {(g["sp"], t): bool(g["final"] or g["t"] + GAME_MS < now) for g in sched["games"] for t in (g["home"], g["away"])}
 
 
 def load_days(raw, season):
@@ -192,8 +197,7 @@ def build(per_season, raw):
         sched = json.loads((raw / str(season) / "proschedule.json").read_text(encoding="utf-8")) if (raw / str(season) / "proschedule.json").exists() else None
         if not days or not sched:
             continue
-        now = time.time() * 1000
-        games_done = {(g["sp"], t): bool(g["final"] or g["t"] + GAME_MS < now) for g in sched["games"] for t in (g["home"], g["away"])}
+        games_done = finished_games(sched)
         out[str(season)] = build_season(season, data, rows, teams, days, games_done, prev_base)
         prev_base = baselines(days)[0]
     return {"seasons": out}
