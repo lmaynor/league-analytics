@@ -1,6 +1,4 @@
 """Shared matchup parsing: turn ESPN schedule entries into category results."""
-import os
-
 from cats import RATIO, REVERSE, cat_ids
 from season import current_season
 

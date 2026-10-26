@@ -1,6 +1,5 @@
 """Player superlatives: yearbook-style awards from the daily rosters (Most Likely to Be Out, Block Party...)."""
 import json
-from collections import defaultdict
 
 from features.cheerios import ACTIVE_SLOTS, finished_games, load_days
 from matchups import CURRENT

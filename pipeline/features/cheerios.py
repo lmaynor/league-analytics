@@ -8,8 +8,8 @@ import json
 import time
 from collections import defaultdict
 
-from cats import RATIO, REVERSE, label
-from matchups import CURRENT, cat_result, pct_value
+from cats import RATIO, label
+from matchups import cat_result, pct_value
 
 ACTIVE_SLOTS = {0, 1, 2, 3, 4, 5, 6, 11}  # PG SG SF PF C G F UTIL; 12 = bench, 13 = IR
 STAT_IDS = ["0", "1", "2", "3", "6", "11", "13", "14", "15", "16", "17"]

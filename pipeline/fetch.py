@@ -7,9 +7,8 @@ import hashlib
 import json
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
 
-from espn_client import BASE, ROOT, ESPNClient
+from espn_client import ROOT, ESPNClient
 from season import current_season
 import os
 

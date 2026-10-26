@@ -21,7 +21,6 @@ def build_season(season, league, owners_cfg):
     reg = [r for r in rows if r["regular"]]
     rec = {tid: dict(w=0, l=0, t=0, cw=0, cl=0, ct=0, one_cat_w=0, one_cat_l=0, sweeps=0, swept=0) for tid in teams}
     tot = {tid: defaultdict(float) for tid in teams}
-    weeks = sorted({r["mp"] for r in reg})
     weekly = {tid: [] for tid in teams}  # chronological cat-win share per team
 
     for r in reg:

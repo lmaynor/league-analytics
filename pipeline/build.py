@@ -8,7 +8,6 @@ Each feature lives in pipeline/features/ and writes its own JSON file(s), so one
 failing never takes the others down.
 """
 import json
-import os
 import sys
 import traceback
 

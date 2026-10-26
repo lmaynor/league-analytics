@@ -19,7 +19,6 @@ def build_records(per_season):
                 entries.append({"season": season, "mp": r["mp"], "team": teams[me]["name"], "owner": teams[me]["owner_name"],
                                 "opp": teams[opp]["name"], "s": mine, "cw": cw, "cl": cl, "t": r["t"]})
     # All-Star breaks and two-week finals are not comparable weeks: keep weeks near each season's typical scoring volume
-    import statistics
     wk_pts = defaultdict(list)
     for e in entries:
         wk_pts[(e["season"], e["mp"])].append(e["s"]["0"])

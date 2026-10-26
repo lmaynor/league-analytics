@@ -64,7 +64,6 @@ function go(tab) {
   render();
 }
 function render() { (TABS[S.tab] || TABS.scoreboard)(); markSortable($("#view"), ["Finish by Season", "#"]); }
-const teamBy = (id) => S.seasons[S.meta.current]?.teams[id];
 
 
 /* click a header on any table.sortable to sort by that column */

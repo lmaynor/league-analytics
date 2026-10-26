@@ -62,4 +62,3 @@ function histH2H(H, owners) {
     <div class="sub" style="margin-top:6px">Matchup record against each owner, all seasons including playoffs. Cobalt = wins, grey = losses.</div>`;
 }
 TABS.history = history;
-window.history_ = history;
