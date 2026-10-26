@@ -10,10 +10,10 @@ function cheerios() {
   $("#view").innerHTML = `<h1>Red Cheerios</h1>
     <div class="sub">Starters who sat out a game their NBA team played. A lone one-game absence with no injury flag counts as rest and is ignored. Healthy adds each missed game's usual production back and re-scores the week against the opponent's real totals. ${a.complete ? "" : "Includes the week in progress, so it can still change."}</div>${seg}
     <div class="card tbl-wrap" style="margin-top:6px"><table class="sortable">
-      <tr><th class="l">Team</th><th>Games Missed</th><th>Wins Lost</th><th>Wins Gifted</th><th>Record</th><th>Healthy</th><th class="l">Most Missed</th></tr>
-      ${a.teams.map((t) => `<tr><td class="l"><b>${esc(t.team)}</b><span class="sub">${esc(t.owner)}</span></td><td>${t.games_missed}</td>
+      <tr><th class="l">Team</th><th>Games Missed</th><th>Wins Lost</th><th>Wins Gifted</th><th>Record</th><th>Healthy</th><th class="l mm-head">Most Missed</th></tr>
+      ${a.teams.map((t) => `<tr><td class="l"><b>${esc(t.team)}</b><span class="sub">${esc(t.owner)}</span>${t.most_missed.length ? `<div class="mm mm-phone">${t.most_missed.map((m) => `<span class="mchip" title="${esc(m.name)}">${esc(initialed(m.name))} <b>${m.games}</b></span>`).join("")}</div>` : ""}</td><td>${t.games_missed}</td>
         <td class="${t.wins_lost > 0 ? "pos" : ""}">${t.wins_lost}</td><td>${t.wins_gifted}</td><td data-v="${t.record[0]}">${rec(t.record)}</td><td data-v="${t.healthy_record[0]}">${rec(t.healthy_record)}</td>
-        <td class="l sub">${t.most_missed.map((m) => `${esc(m.name)} (${m.games})`).join(", ") || "none"}</td></tr>`).join("")}
+        <td class="l mm-cell">${t.most_missed.length ? `<div class="mm">${t.most_missed.map((m) => `<span class="mchip" title="${esc(m.name)}">${esc(initialed(m.name))} <b>${m.games}</b></span>`).join("")}</div>` : '<span class="sub">None</span>'}</td></tr>`).join("")}
     </table></div>
     <div class="sub" style="margin-top:6px">Wins lost: matchups that would have flipped in the team's favor, ties counting half. Wins gifted: wins that would have slipped away if the opponent's absences hadn't happened.</div>
     ${a.ouch.length ? `<h2>Biggest Hits</h2><div class="card tbl-wrap"><table class="sortable">
