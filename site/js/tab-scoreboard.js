@@ -102,7 +102,7 @@ function swapsBlock(m, h, a) {
   const sw = S.swaps?.matchups?.find((x) => x.home === m.home);
   if (!sw) return "";
   const rec = (r) => `${r[0]}-${r[1]}${r[2] ? `-${r[2]}` : ""}`;
-  const line = (list, t) => list.map((x) => `<div class="rl"><b>${esc(t.name)}</b>: start <b>${esc(x.in)}</b> over ${esc(x.out)} on ${x.day} and it's ${rec(x.to)} instead of ${rec(x.from)}.</div>`).join("");
+  const line = (list, t) => list.map((x) => `<div class="rl"><b>${esc(t.name)}</b>: start <b>${esc(x.in)}</b> over ${esc(x.out)} this week and it's ${rec(x.to)} instead of ${rec(x.from)}.</div>`).join("");
   const body = line(sw.home_swaps, h) + line(sw.away_swaps, a);
   return body ? `<div class="cheerios swaps"><h4>Bench Regret</h4>${body}</div>` : "";
 }

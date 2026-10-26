@@ -37,13 +37,13 @@ Each feature writes its own file (`live.json`, `records.json`, `cheerios.json`, 
 
 ## How the numbers work
 
-- **Win chance (live):** the rest of the matchup week is simulated 10,000 times from live category totals, current rosters and the remaining NBA games. Best 10 healthy players per day are assumed started; today's lineup is the real one (bench excluded). Players blend this season's form into last season and ESPN's projection. FG%/FT% are simulated from makes and attempts. A game counts as over once ESPN marks it official or 3 hours after tip.
+- **Win chance (live):** the rest of the matchup week is simulated 10,000 times from live category totals, current rosters and the remaining NBA games. Lineups lock weekly (see below), so each team's current starters play every game they have left; bench players never replace an injured or resting starter. Players blend this season's form into last season and ESPN's projection. FG%/FT% are simulated from makes and attempts. A game counts as over once ESPN marks it official or 3 hours after tip.
 - **Swing** = how much a category moves matchup win chance. **Sweat** = swing x how open the category is.
 - **xWin** = each week, matchups your totals would win against all other teams, summed. **Luck** = actual wins - xWin.
 - **Power** = 60% season category win rate + 40% last four weeks.
 - **Red Cheerios:** a "miss" is a starter in an active slot on a day his NBA team played who did not play. Injuries and rest days both count. Each miss adds his per-game average back to the team's totals and the week is re-scored against the real opponent. Only the last two seasons have daily rosters (`DAILY_SEASONS`).
 - **Race for Last:** the rest of the regular season is simulated 10,000 times from category strength (this season blended with the owner's share last season) and the real schedule; the live week uses live odds. The win model (K = 5.73) was fit on 2018-2026 matchups. Finished seasons use the real order.
-- **Bench Regret:** for each day of the live week, a benched player who played is swapped into the slot of a starter he was eligible to replace (`eligibleSlots` is stored in the daily rows); swaps that improve the matchup result are shown.
+- **Bench Regret:** lineups lock for the week, so a swap is a whole week: a benched player who played is swapped into the slot of a starter he was eligible to replace (`eligibleSlots` is stored in the daily rows), his week of real stats against the starter's, and swaps that improve the matchup result are shown. Hindsight only, since nothing can change once the lock holds.
 - **Records / Superlatives:** single-week records skip All-Star breaks and two-week finals; the week in progress is excluded. Superlatives count games in a starting slot; the current season is held back until it has 14 days.
 
 ## ESPN quirks learned the hard way
@@ -53,6 +53,7 @@ Each feature writes its own file (`live.json`, `records.json`, `cheerios.json`, 
 - A player who did not play gets an **empty** stat line (`stats: {}`) for that day. ESPN may also send two game lines per day (the previous game and the day's own): match on `scoringPeriodId == day`.
 - `injuryStatus` is only the status as of the fetch, never historical.
 - Without cookies ESPN returns zeroed scores for the current season. Cookies live in `.env` locally and in Actions secrets.
+- **Lineups lock weekly**: `lineupLocktimeType: INDIVIDUAL_FIRSTGAME_WEEKLY`, each player locks at his first game of the matchup week, and slots barely change after day one (about 3% of player-weeks, all before the lock). No mid-week pickups or bench swaps, so injuries stay injuries (Red Cheerios) and the live simulation keeps the current starters.
 - Matchup weeks run Monday to Sunday (ET); the final day comes from the NBA schedule, not the device clock.
 
 ## Deploy and hands-off operation

@@ -28,7 +28,7 @@ Then open http://localhost:8000.
 
 For the current matchup week, `pipeline/features/live.py` takes each side's live category totals, then simulates the rest of the week 10,000 times:
 
-- every remaining NBA game for every healthy rostered player, assuming a good manager fills the 10 active slots each day with the best players who have a game
+- every remaining NBA game for each team's current starters (lineups lock weekly, so nobody swaps mid-week)
 - player averages blend this season's form into last season and ESPN's projection
 - game-to-game spread per category; FG% and FT% are simulated from makes and attempts
 - games in progress count as half remaining, and a game counts as over 3 hours after tip-off; injured players are discounted

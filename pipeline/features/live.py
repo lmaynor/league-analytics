@@ -1,8 +1,8 @@
 """Live matchup forecast for a category league: who wins each category, and what's swinging it.
 
 For the current matchup week we take each side's live category totals, then simulate the rest of
-the week: every remaining NBA game for every healthy rostered player (best 10 per day, i.e. an
-optimally managed lineup), with negative-binomial-ish game-to-game spread. FG%/FT% are simulated
+the week: every remaining NBA game for each team's current starters (lineups lock weekly, so no
+mid-week swaps), with negative-binomial-ish game-to-game spread. FG%/FT% are simulated
 from makes and attempts, so a late high-volume shooter moves them the right amount.
 """
 import datetime as dt
@@ -14,7 +14,6 @@ import numpy as np
 from cats import COUNTING, OD, RATIO, REVERSE, label
 
 SIMS = 10000
-LINEUP_SLOTS = 10
 ACTIVE = {0, 1, 2, 3, 4, 5, 6, 11}  # PG SG SF PF C G F UTIL; 12 = bench, 13 = IR
 AVAIL = {"OUT": 0.0, "SUSPENSION": 0.0, "INJURY_RESERVE": 0.0, "DOUBTFUL": 0.2, "QUESTIONABLE": 0.6, "DAY_TO_DAY": 0.85}
 ET = ZoneInfo("America/New_York")
@@ -35,11 +34,6 @@ def player_means(p, season):
     w = gp / (gp + 12) if cur else 0
     base = cur["avg"] if cur else prior
     return {s: w * base.get(s, 0) + (1 - w) * prior.get(s, 0) for s in map(str, SIM_STATS)}
-
-
-def value(m):
-    return (m["0"] + 1.2 * m["6"] + 1.5 * m["3"] + 3 * m["2"] + 3 * m["1"] + m["17"] - 1.2 * m["11"]
-            + 2 * (m["13"] - 0.46 * m["14"]) + 1.2 * (m["15"] - 0.8 * m["16"]))
 
 
 def week_days(league, sched, matchup_row_home):
@@ -78,17 +72,19 @@ def remaining_games(sched, cur_sp, end_sp, now_ms):
     return out
 
 
-def plan_team(players, season, rem, cur_sp=None):
-    """Expected lineup player-games for the rest of the week."""
+def plan_team(players, season, rem):
+    """Expected player-games for the rest of the week.
+
+    Lineups lock for the week (each player at his first game), so the current starters play every
+    game they have left. Bench players never replace an injured or resting starter."""
     pm = {p["id"]: player_means(p, season) for p in players}
-    cand = [p for p in players if p["slot"] != 13 and AVAIL.get(p["inj"], 1.0) > 0]
+    starters = [p for p in players if p["slot"] in ACTIVE and AVAIL.get(p["inj"], 1.0) > 0]
     games = []
     for sp in sorted(rem):
-        pool = [p for p in cand if p["slot"] in ACTIVE] if sp == cur_sp else cand  # today's lineup is already set
-        today = [(p, rem[sp][p["pro"]]) for p in pool if p["pro"] in rem[sp]]
-        today.sort(key=lambda x: -value(pm[x[0]["id"]]) * x[1][0])
-        for p, (frac, g) in today[:LINEUP_SLOTS]:
-            games.append({"p": p, "sp": sp, "f": frac, "q": AVAIL.get(p["inj"], 1.0), "m": pm[p["id"]], "g": g})
+        for p in starters:
+            if p["pro"] in rem[sp]:
+                frac, g = rem[sp][p["pro"]]
+                games.append({"p": p, "sp": sp, "f": frac, "q": AVAIL.get(p["inj"], 1.0), "m": pm[p["id"]], "g": g})
     return games
 
 
@@ -175,7 +171,7 @@ def build(league, season_data, roster, sched, now_ms=None):
 
     sims, plans = {}, {}
     for tid, players in roster.items():
-        plans[tid] = plan_team(players, season, rem, cur_sp)
+        plans[tid] = plan_team(players, season, rem)
         sims[tid] = simulate_team(plans[tid], rng)
 
     out_matchups = []
