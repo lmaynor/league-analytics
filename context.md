@@ -80,7 +80,7 @@ Each feature writes its own file (`live.json`, `records.json`, `cheerios.json`, 
 - Design: "Cobalt" (near-white paper, hairlines, one cobalt accent, graphite panels, keycap buttons). Title Case headings and column headers. No emoji, gradients, glass or left-stripe cards in the UI.
 - Copy: short, plain, natural; no em dashes; no hype words; do not explain the joke (the name Red Cheerios stands alone). Owner names are first names.
 - Comments: only where they say something the code does not (why, constraints); no banners, narration or end markers.
-- Ship style: commit and push straight to `main`, then `gh workflow run refresh.yml` to deploy. End commit messages with the Claude co-author line.
+- Ship style: work on a branch, open a PR against your own fork (`--repo lmaynor/league-analytics`), merge it, then `gh workflow run refresh.yml` to deploy. Push straight to `main` only when asked. Bot data commits land on `main`, so rebase with `git pull --rebase -X ours origin main` before pushing. End commit messages with the Claude co-author line.
 - Never commit `.env` or cookie values; owner account ids are hashed in raw data.
 
 ## Known leftovers
