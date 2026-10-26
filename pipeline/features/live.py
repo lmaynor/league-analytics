@@ -153,6 +153,27 @@ def tonight(games_all, team_players, cur_sp, now_ms, abbrev):
     return out
 
 
+def lock_counts(tid, row, roster, sched, now_ms):
+    """(locked, total) over a team's starters that have a game this week.
+
+    Lineups lock per player at his first game of the week, so a starter is locked once his NBA team has tipped off."""
+    tips = {}
+    for g in sched["games"]:
+        if row["sp0"] <= g["sp"] <= row["sp1"]:
+            for t in (g["home"], g["away"]):
+                tips[t] = min(tips.get(t, g["t"]), g["t"])
+    starters = [p for p in roster.get(str(tid), []) if p["slot"] in ACTIVE and p["pro"] in tips]
+    return sum(tips[p["pro"]] <= now_ms for p in starters), len(starters)
+
+
+def hide(mm, lock):
+    """Keep only what is already settled (names, the score so far, current category values) for a matchup
+    whose lineups can still change. Odds, projections and swings would be a lineup tool, so they are never published."""
+    return {"hidden": True, "lock": lock, "home": mm["home"], "away": mm["away"], "home_name": mm["home_name"], "away_name": mm["away_name"],
+            "home_owner": mm["home_owner"], "away_owner": mm["away_owner"], "now": mm["now"],
+            "cats": [{k: c[k] for k in ("id", "label", "reverse", "hv", "av")} for c in mm["cats"]]}
+
+
 def build(league, season_data, roster, sched, now_ms=None):
     if not roster or not sched:
         return {"active": False}
@@ -223,9 +244,16 @@ def build(league, season_data, roster, sched, now_ms=None):
             "home_side": side_info(plans[h], roster[h], cur_sp, end_sp, now_ms, abbrev, date_of, sched),
             "away_side": side_info(plans[a], roster[a], cur_sp, end_sp, now_ms, abbrev, date_of, sched),
         })
+        lock = {"home": lock_counts(m["home"], m, roster, sched, now_ms), "away": lock_counts(m["away"], m, roster, sched, now_ms)}
+        if any(done < total for done, total in lock.values()):
+            out_matchups[-1] = hide(out_matchups[-1], lock)
+        else:
+            out_matchups[-1]["hidden"] = False
 
     sweat = []
     for i, mm in enumerate(out_matchups):
+        if mm["hidden"]:
+            continue
         for c in mm["cats"]:
             if abs(c["swing"]) >= 0.05 and 0.1 <= c["p_home"] + c["p_tie"] / 2 <= 0.9:  # only categories still genuinely open
                 sweat.append({"matchup": i, "cat": c["id"], "label": c["label"], "sweat": c["sweat"],
@@ -267,6 +295,6 @@ def side_info(games, players, cur_sp, end_sp, now_ms, abbrev, date_of, sched):
 def summary(out):
     lines = [f"live: week {out['mp']}, day {out['cur_sp']} of ..{out['end_sp']} ({'FINAL DAY' if out['final_day'] else 'in progress'}), {out['games_left']} lineup games left"]
     for m in out["matchups"]:
-        lines.append(f"  {m['home_name']} {m['now']['hw']}-{m['now']['aw']}-{m['now']['t']} {m['away_name']}: "
-                     f"{m['p_home_win']:.0%} / {m['p_away_win']:.0%}")
+        odds = "odds hidden until lineups lock" if m["hidden"] else f"{m['p_home_win']:.0%} / {m['p_away_win']:.0%}"
+        lines.append(f"  {m['home_name']} {m['now']['hw']}-{m['now']['aw']}-{m['now']['t']} {m['away_name']}: {odds}")
     return "\n".join(lines)

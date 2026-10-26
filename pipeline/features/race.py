@@ -33,7 +33,7 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live):
     live_mp = next((r["mp"] for r in rows if r["regular"] and r["live"]), None)
     live_p = None
     if live and live.get("active") and season == CURRENT and live_mp:
-        live_p = {(live_mp, m["home"]): m["p_home_win"] + m["p_tie"] / 2 for m in live["matchups"]}
+        live_p = {(live_mp, m["home"]): m["p_home_win"] + m["p_tie"] / 2 for m in live["matchups"] if not m.get("hidden")}  # hidden matchups fall back to the strength model
     # a week with no games left to simulate is played, even if ESPN has not finalized it yet
     done = [r for r in rows if r["regular"] and (not r["live"] or live_p is None)]
     completed = sorted({r["mp"] for r in done})

@@ -63,6 +63,9 @@ def build(per_season, raw, live):
     data, rows, teams = per_season[CURRENT]
     days = load_days(raw, CURRENT)
     live_rows = [r for r in rows if r["live"]]
+    if live and live.get("active"):  # no swap hints while a matchup's lineups can still change
+        shown = {m["home"] for m in live["matchups"] if not m.get("hidden")}
+        live_rows = [r for r in live_rows if r["home"] in shown]
     if not days or not live_rows:
         return {"matchups": []}
     cids = [c["id"] for c in data["cats"]]

@@ -10,6 +10,7 @@ window.setDetail = (v) => { store.set("detail", v); scoreboard(); };
 
 /* per-category odds under each score: "Locked 100%", "Toss-up 52%" */
 function odds_(lm, id) {
+  if (lm?.hidden) return "";
   const c = lm?.cats.find((x) => x.id === id);
   return c ? `<span class="st">${STATE[c.state]} · ${pct(Math.max(c.p_home, c.p_away))}</span>` : "";
 }
@@ -77,13 +78,14 @@ function scoreCard(m, d, lm) {
   const lead = (c) => { const h = m.hs[c], a = m.as[c]; if (h == null || a == null || h === a) return 0; return (rev[c] ? h < a : h > a) ? 1 : -1; };
   const h = d.teams[m.home], a = d.teams[m.away];
   const tag = m.tier !== "NONE" ? (m.tier.startsWith("WINNERS") ? "Playoffs" : "Consolation") : lm ? "Live" : "Final";
-  const odds = lm ? `<div class="wp"><div class="h" style="width:${lm.p_home_win * 100}%">${lm.p_home_win >= .12 ? pct(lm.p_home_win) : ""}</div>${lm.p_tie >= .03 ? `<div class="t" style="width:${lm.p_tie * 100}%"></div>` : ""}<div class="a" style="width:${lm.p_away_win * 100}%">${lm.p_away_win >= .12 ? pct(lm.p_away_win) : ""}</div></div>
+  const lockNote = lm?.hidden ? `<div class="sub" style="margin-top:6px">Odds unlock when every starter has tipped off (${lm.lock.home[0] + lm.lock.away[0]} of ${lm.lock.home[1] + lm.lock.away[1]} locked).</div>` : "";
+  const odds = lm && !lm.hidden ? `<div class="wp"><div class="h" style="width:${lm.p_home_win * 100}%">${lm.p_home_win >= .12 ? pct(lm.p_home_win) : ""}</div>${lm.p_tie >= .03 ? `<div class="t" style="width:${lm.p_tie * 100}%"></div>` : ""}<div class="a" style="width:${lm.p_away_win * 100}%">${lm.p_away_win >= .12 ? pct(lm.p_away_win) : ""}</div></div>
     <div class="sub" style="margin-top:4px">Win chance${lm.p_tie > 0.03 ? ` (tie ${pct(lm.p_tie)})` : ""}</div>` : "";
   return `<div class="card mu">
     <div class="mu-head"><div class="teams">
       <div class="tm h ${m.hw > m.aw ? "" : "dim"}">${esc(h.name)}<small>${esc(h.owner_name)}</small></div>
       <div class="score">${m.hw}–${m.aw}${m.t ? `–${m.t}` : ""}<small>${tag}</small></div>
-      <div class="tm a ${m.aw > m.hw ? "" : "dim"}">${esc(a.name)}<small>${esc(a.owner_name)}</small></div></div>${odds}</div>
+      <div class="tm a ${m.aw > m.hw ? "" : "dim"}">${esc(a.name)}<small>${esc(a.owner_name)}</small></div></div>${odds}${lockNote}</div>
     <div class="cats">${d.cats.map((c) => { const l = lead(c.id);
       return `<div class="cat sb" style="cursor:default"><div class="v h ${l > 0 ? "win" : l < 0 ? "lose" : ""}">${fmt(m.hs[c.id], c.id)}</div>
         <div class="mid"><div class="lab">${c.label}${odds_(lm, c.id)}</div></div><div class="v a ${l < 0 ? "win" : l > 0 ? "lose" : ""}">${fmt(m.as[c.id], c.id)}</div></div>`; }).join("")}</div>${cheeriosBlock(m, h, a)}${swapsBlock(m, h, a)}</div>`;
@@ -97,7 +99,7 @@ function scoreboard() {
   const w = d.weeks.find((x) => x.mp === S.week);
   const isLive = !!(L?.active && L.mp === S.week);
   const pref = store.get("detail", "auto");
-  const full = isLive && detailMode(L) === "full";
+  const full = isLive && detailMode(L) === "full" && L.matchups.some((m) => !m.hidden);  // nothing to show in Full until a matchup's odds unlock
   const seg = isLive ? `<div class="seg">${[["auto", "Auto"], ["compact", "Compact"], ["full", "Full"]].map(([k, l]) => `<button class="${pref === k ? "on" : ""}" onclick="setDetail('${k}')">${l}</button>`).join("")}</div>` : "";
   const weekName = (w) => `Week ${w.mp}${w.matchups[0]?.tier?.startsWith("WINNERS") ? " (Playoffs)" : ""}${w.mp === d.current_mp ? (L?.active && L.mp === w.mp ? " (Live)" : " (Current)") : ""}`;
   const picker = `<label class="wksel">Week <select onchange="S.week=+this.value;scoreboard()" aria-label="Choose a week">${[...d.weeks].reverse().map((w) => `<option value="${w.mp}"${w.mp === S.week ? " selected" : ""}>${weekName(w)}</option>`).join("")}</select></label>`;
@@ -105,7 +107,8 @@ function scoreboard() {
   let body;
   if (full) {
     const list = L.matchups.map((m) => ({ h: m.home_owner, a: m.away_owner, hw: m.now.hw, aw: m.now.aw, t: m.now.t }));
-    body = `${oddsHeader(L)}${tiles(list)}<div class="grid deck" id="deck">${L.matchups.map((m, i) => oddsCard({ ...m, i })).join("")}</div>`;
+    const byHome = Object.fromEntries(w.matchups.map((x) => [x.home, x]));
+    body = `${oddsHeader(L)}${tiles(list)}<div class="grid deck" id="deck">${L.matchups.map((m, i) => (m.hidden ? scoreCard(byHome[m.home], d, m) : oddsCard({ ...m, i }))).join("")}</div>`;
   } else {
     const live = (m) => (isLive ? L.matchups.find((x) => x.home === m.home) : null);
     const list = w.matchups.map((m) => ({ h: d.teams[m.home].owner_name, a: d.teams[m.away].owner_name, hw: m.hw, aw: m.aw, t: m.t }));
