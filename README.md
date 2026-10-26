@@ -39,11 +39,11 @@ Each category gets a win probability and a **swing**: how many points of matchup
 
 1. In the GitHub repo go to **Settings, Pages, Build and deployment, Source** and choose **GitHub Actions**.
 2. Under **Settings, Secrets and variables, Actions** add the secrets `LEAGUE_ID`, `ESPN_S2` (decoded) and `SWID` (with braces).
-3. Run **Actions, Refresh league data** once. After that it runs every 10 minutes across NBA game windows and a few times in the daytime.
+3. Run **Actions, Refresh league data** once. After that it runs every 10 minutes from midday ET through the late games, and every 5 minutes on Sundays (the fastest GitHub allows; it often runs a few minutes late). Each run first checks the NBA schedule and skips itself when no game is on, so off days cost almost nothing. The site redeploys on every run, but the data is committed once a night so the repo stays small. ESPN cookies last about a year; when they expire the runs fail and GitHub emails you, and you replace the `ESPN_S2` and `SWID` secrets.
 
 Hosted pages are public, so team names and scores are visible to anyone with the URL. Your cookies are not. Raw files keep only owners' ESPN display names, and account IDs are hashed.
 
-**New season:** add a repository variable `SEASON` (the year the NBA season ends, e.g. `2028`) and update `.env`. The previous season becomes history automatically.
+**New season:** nothing to do. The season is detected from the date (September to December belongs to the season ending next year). Set a `SEASON` repository variable only to override it.
 
 ## Files
 

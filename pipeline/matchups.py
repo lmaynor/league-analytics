@@ -2,8 +2,9 @@
 import os
 
 from cats import RATIO, REVERSE, cat_ids
+from season import current_season
 
-CURRENT = int(os.environ.get("SEASON", "2027"))
+CURRENT = current_season()
 ALL_STATS = [0, 1, 2, 3, 6, 11, 13, 14, 15, 16, 17, 19, 20]
 
 
