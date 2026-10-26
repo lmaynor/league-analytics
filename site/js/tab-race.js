@@ -10,6 +10,69 @@ function spark(trail) {
     <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2.6" fill="currentColor"/></svg>`;
 }
 
+/* Prediction-market style chart: one line per team for its chance of finishing last, week by week.
+   Colors are stable per team (ordered by id) so they match between the legend and the lines. */
+const lbl = (l) => (l === 0 ? "Start" : l === "live" ? "Live" : `Wk ${l}`);
+
+function drawMarket(d) {
+  const box = $("#market");
+  if (!box) return;
+  const ids = d.teams.map((t) => t.id).sort((a, b) => a - b);
+  const color = (t) => `var(--m${ids.indexOf(t.id) % 10})`;
+  const n = d.trail_labels.length, focus = S.raceFocus;
+  const top = Math.max(0.1, ...d.teams.flatMap((t) => t.trail));
+  const step = top > 0.6 ? 0.25 : top > 0.3 ? 0.1 : 0.05;
+  const max = Math.min(1, Math.ceil(top / step) * step);
+  const legend = d.teams.map((t) => {
+    const cur = t.trail[n - 1], prev = n > 1 ? t.trail[n - 2] : cur, dl = Math.round((cur - prev) * 100);
+    return `<button class="mk-row${focus === t.id ? " on" : ""}${focus != null && focus !== t.id ? " dim" : ""}" data-id="${t.id}" aria-pressed="${focus === t.id}">
+      <i style="background:${color(t)}"></i><span class="mk-name" title="${esc(t.name)}">${esc(t.owner)}</span>
+      <b>${cur >= 0.995 ? "100%" : cur < 0.005 ? "0%" : `${Math.round(cur * 100)}%`}</b><em>${dl === 0 ? "" : dl > 0 ? `+${dl}` : `−${Math.abs(dl)}`}</em></button>`;
+  }).join("");
+  box.innerHTML = `<div class="mk-plot"><svg id="mk-svg"></svg><div class="mk-tip" id="mk-tip"></div></div><div class="mk-legend">${legend}</div>`;
+  const plot = box.querySelector(".mk-plot"), svg = box.querySelector("#mk-svg");
+  const W = Math.max(260, plot.clientWidth), H = 250, L = 34, R = 10, T = 10, B = 26;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("width", W); svg.setAttribute("height", H);
+  const x = (i) => L + (n < 2 ? (W - L - R) / 2 : (i / (n - 1)) * (W - L - R));
+  const y = (p) => T + (1 - p / max) * (H - T - B);
+  let g = "";
+  for (let v = 0; v <= max + 1e-9; v += step) g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="mk-grid"/><text x="${L - 6}" y="${y(v) + 4}" class="mk-ax" text-anchor="end">${Math.round(v * 100)}%</text>`;
+  const every = Math.ceil(n / Math.max(2, Math.floor((W - L) / 46)));
+  const shown = d.trail_labels.map((_, i) => i).filter((i) => i % every === 0);
+  if (shown[shown.length - 1] !== n - 1) {  // always label the latest point; drop a neighbor that would collide with it
+    if (n - 1 - shown[shown.length - 1] < every * 0.7) shown.pop();
+    shown.push(n - 1);
+  }
+  shown.forEach((i) => { g += `<text x="${x(i)}" y="${H - 8}" class="mk-ax" text-anchor="${i === 0 ? "start" : i === n - 1 ? "end" : "middle"}">${lbl(d.trail_labels[i])}</text>`; });
+  const order = [...d.teams].sort((a, b) => (focus === a.id) - (focus === b.id));
+  g += order.map((t) => {
+    const pts = t.trail.map((p, i) => `${x(i).toFixed(1)},${y(p).toFixed(1)}`).join(" ");
+    const dim = focus != null && focus !== t.id, w = focus === t.id ? 3 : 1.8;
+    return `<g style="opacity:${dim ? 0.18 : 1}"><polyline points="${pts}" fill="none" stroke="${color(t)}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${x(n - 1).toFixed(1)}" cy="${y(t.trail[n - 1]).toFixed(1)}" r="${focus === t.id ? 4.5 : 3.2}" fill="${color(t)}"/></g>`;
+  }).join("");
+  g += `<line id="mk-x" y1="${T}" y2="${H - B}" class="mk-cross" style="display:none"/>`;
+  svg.innerHTML = g;
+  const tip = box.querySelector("#mk-tip"), cross = svg.querySelector("#mk-x");
+  const show = (ev) => {
+    const r = svg.getBoundingClientRect();
+    const i = Math.max(0, Math.min(n - 1, Math.round(((ev.clientX - r.left - L) / (W - L - R)) * (n - 1))));
+    cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.style.display = "";
+    const rows = [...d.teams].sort((a, b) => b.trail[i] - a.trail[i]).slice(0, 5)
+      .map((t) => `<div><i style="background:${color(t)}"></i>${esc(t.owner)}<b>${Math.round(t.trail[i] * 100)}%</b></div>`).join("");
+    tip.innerHTML = `<strong>${lbl(d.trail_labels[i])}</strong>${rows}`;
+    tip.style.display = "block";
+    const tw = tip.offsetWidth, px = x(i);
+    tip.style.left = `${Math.max(4, Math.min(W - tw - 4, px + 12 > W - tw ? px - tw - 12 : px + 12))}px`;
+  };
+  const hide = () => { cross.style.display = "none"; tip.style.display = "none"; };
+  svg.addEventListener("pointermove", show); svg.addEventListener("pointerdown", show);
+  svg.addEventListener("pointerleave", hide); svg.addEventListener("pointercancel", hide);
+  box.querySelectorAll(".mk-row").forEach((b) => (b.onclick = () => { S.raceFocus = S.raceFocus === +b.dataset.id ? null : +b.dataset.id; drawMarket(d); }));
+}
+let marketResize;
+addEventListener("resize", () => { clearTimeout(marketResize); marketResize = setTimeout(() => { const d = S.race?.seasons?.[S.season]; if (S.tab === "standings" && $("#market") && d) drawMarket(d); }, 150); });
+
 function race() {
   const d = S.race?.seasons?.[S.season];
   if (!d) { panel().innerHTML = `<h1>${S.season} Race for Last</h1><div class="sub">The race covers the current season and the one before it.</div>`; return; }
@@ -17,7 +80,9 @@ function race() {
   const rec = (r) => `${r[0]}-${r[1]}${r[2] ? `-${r[2]}` : ""}`;
   const finish = (t) => (t.rank_p10 === t.rank_p90 ? ordinal(t.rank_med) : `${ordinal(t.rank_p10)} to ${ordinal(t.rank_p90)}`);
   panel().innerHTML = `<h1>${d.season} Race for Last</h1>
+    <h2 class="mk-title">Odds of Finishing Last</h2>
     <div class="sub">${d.complete ? "Final standings. The trail shows how each team's chance of finishing last moved week by week." : `The rest of the regular season, simulated 10,000 times from each team's category strength and the real schedule. ${d.live ? "This week's matchups use the live odds. " : ""}Chance of Last is how often a team finishes at the bottom.`}</div>
+    <div class="card market" id="market" style="margin-top:12px"></div>
     <div class="card tbl-wrap" style="margin-top:12px"><table class="sortable">
       <tr><th class="l">Team</th><th class="hide-sm">Record</th><th class="hide-sm">Left</th><th class="hide-sm">Proj. Wins</th><th class="l">Chance of Last</th><th class="hide-sm">Bottom 3</th><th class="hide-sm">Likely Finish</th><th>Trail</th></tr>
       ${d.teams.map((t) => `<tr><td class="l"><b>${esc(t.name)}</b><span class="sub">${esc(t.owner)}<span class="show-sm"> · ${rec(t.record)}</span></span></td>
@@ -26,4 +91,6 @@ function race() {
         <td class="hide-sm" data-v="${t.p_bottom3}">${pctTxt(t.p_bottom3)}</td><td class="hide-sm" data-v="${t.rank_med}">${finish(t)}</td><td class="trail" data-v="${t.trail[t.trail.length - 1]}">${spark(t.trail)}</td></tr>`).join("")}
     </table></div>
     <div class="sub" style="margin-top:6px">Trail: chance of last at the start of the season and after each week. Likely Finish is the range most simulations land in.</div>`;
+  S.raceFocus = null;
+  drawMarket(d);
 }
