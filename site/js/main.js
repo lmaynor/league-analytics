@@ -25,7 +25,22 @@ async function init() {
 
 /* pull down at the top of the page to reload the data, like a native list */
 /* the small status pill: pull hints sit at the top (the page opens up as you pull); results sit above the tab bar, clear of the header */
-const toast = (txt, show, top = false) => { const p = $("#ptr"); p.textContent = txt; p.classList.toggle("top", top); p.classList.toggle("show", show); };
+let toastTimer;
+const toast = (txt, show, top = false) => {
+  const p = $("#ptr");
+  clearTimeout(toastTimer);
+  p.textContent = txt;
+  p.classList.toggle("top", top);
+  if (show) {
+    p.style.display = "block";
+    void p.offsetWidth;  // let the browser paint the start state so the slide-in animates
+    p.classList.add("show");
+  } else {
+    p.classList.remove("show");
+    // fully remove it afterwards: iOS tints the status bar from fixed elements at the top edge, even invisible ones
+    toastTimer = setTimeout(() => { p.style.display = "none"; }, 260);
+  }
+};
 
 /* if the page itself was redeployed, reload it so the new scripts and styles load too */
 async function pageIsStale() {

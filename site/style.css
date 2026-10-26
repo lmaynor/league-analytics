@@ -266,7 +266,7 @@ button, .cat, .sw, .tile { touch-action: manipulation; }
 /* matchup strip + snap deck (phones only; desktop keeps the grid) */
 @media (max-width: 700px) {
   .tiles { display: grid; grid-template-columns: repeat(var(--n, 5), minmax(0, 1fr)); gap: 6px; position: sticky; top: 0; z-index: 12;
-    margin: 12px -12px 4px; padding: 8px 12px; background: color-mix(in srgb, var(--color-paper) 92%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+    margin: 12px -12px 4px; padding: 8px 12px; background: var(--color-paper); }
   .tile { display: flex; min-width: 0; flex-direction: column; align-items: center; gap: 1px; padding: 6px 2px;
     border: 1px solid var(--color-rule); border-radius: 14px; background: var(--color-paper); color: var(--text); font: inherit; cursor: pointer;
     transition: transform var(--dur-micro) ease-out, background var(--dur-micro) ease-out, border-color var(--dur-micro) ease-out; }
@@ -283,7 +283,7 @@ button, .cat, .sw, .tile { touch-action: manipulation; }
 }
 @media (max-width: 700px) and (prefers-reduced-motion: reduce) { .deck { transition: none; } .tile { transition: none; } }
 
-#ptr { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 40; transform: translate(-50%, 24px); opacity: 0; pointer-events: none;
+#ptr { display: none; position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 40; transform: translate(-50%, 24px); opacity: 0; pointer-events: none;
   padding: 6px 14px; border-radius: 99px; background: var(--color-graphite); color: var(--color-graphite-ink); font: 500 13px var(--font-display);
   transition: transform .2s ease-out, opacity .2s ease-out; }
 #ptr.top { top: calc(8px + env(safe-area-inset-top)); bottom: auto; transform: translate(-50%, -140%); }
