@@ -353,3 +353,6 @@ td.l b { display: block; }
   .ctl { order: 2; }
 }
 @media (prefers-reduced-motion: reduce) { #theme { transition: none; } }
+
+/* rank column: stays one narrow line so "10" never splits */
+th.rank, td.rank { white-space: nowrap; width: 1%; min-width: 2.4em; text-align: center; padding-left: 8px; padding-right: 8px; }
