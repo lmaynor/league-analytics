@@ -113,8 +113,8 @@ def build_records(per_season):
                      "value": fmt(t), "extra": None})
     srec("fame", "Best Regular Season", "Highest category win rate over a full regular season.", lambda x: x[1]["cat_pct"], True, lambda t: f"{t['cat_pct'] * 100:.1f}% of cats, {t['w']}-{t['l']}-{t['t']}", "")
     srec("shame", "Worst Regular Season", "Lowest category win rate over a full regular season.", lambda x: x[1]["cat_pct"], False, lambda t: f"{t['cat_pct'] * 100:.1f}% of cats, {t['w']}-{t['l']}-{t['t']}", "")
-    srec("fame", "Blessed Schedule", "Most matchup wins above what all-play says they deserved.", lambda x: x[1]["luck"], True, lambda t: f"+{t['luck']:.1f} wins of luck", "")
-    srec("shame", "Cursed Schedule", "Fewest matchup wins vs what all-play says they deserved.", lambda x: x[1]["luck"], False, lambda t: f"{t['luck']:.1f} wins of luck", "")
+    srec("fame", "Blessed Schedule", "Most matchup wins above xWin.", lambda x: x[1]["luck"], True, lambda t: f"+{t['luck']:.1f} wins of luck", "")
+    srec("shame", "Cursed Schedule", "Most matchup wins below xWin.", lambda x: x[1]["luck"], False, lambda t: f"{t['luck']:.1f} wins of luck", "")
     srec("shame", "Heartbreak Season", "Most one-category losses in a regular season.", lambda x: x[1]["one_cat_l"], True, lambda t: f"{t['one_cat_l']} one-cat losses", "")
 
     career = {}

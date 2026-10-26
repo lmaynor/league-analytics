@@ -1,4 +1,4 @@
-"""Standings, luck (all-play), category strength and power rank for one season."""
+"""Standings, xWin and luck, category strength and power rank for one season."""
 from collections import defaultdict
 
 from cats import RATIO, REVERSE, label

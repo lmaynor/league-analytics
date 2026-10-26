@@ -4,7 +4,7 @@ Analytics for an ESPN **H2H 9-category** fantasy basketball league (PTS, REB, AS
 
 - **Scoreboard** for the live matchup week, with a Full view that adds each category's win probability, ranked by how much it can swing the matchup, plus who still plays tonight. It switches to Full on the final day of the week.
 - **Red Cheerios** (named for ESPN's red O marking a player Out): what each week would have looked like if no starter had missed a game, with wins lost and gifted
-- Standings with category record, luck (all-play expected wins), one-category results, and power rankings
+- Standings with category record, xWin (expected wins against every team) and luck, one-category results, and power rankings
 - Category strength heatmap for every team
 - Weekly scoreboard with category-by-category results
 - All-time history: titles, head-to-head records, closest category finishes, 9-0 sweeps
