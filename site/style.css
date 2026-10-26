@@ -27,7 +27,7 @@ a { text-decoration-color: var(--color-rule-2); text-underline-offset: 0.2em; } 
 
 .top { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; padding: 10px 16px; background: var(--color-paper); border-bottom: 1px solid var(--color-rule); position: sticky; top: 0; z-index: 5; }
 .brand { font-weight: 600; font-size: 18px; letter-spacing: var(--tracking-display); display: flex; gap: 10px; align-items: center; }
-.logo { width: 32px; height: 32px; border-radius: 8px; display: block; }
+.logo { width: 32px; height: 32px; display: block; }
 nav { display: flex; gap: 2px; flex-wrap: wrap; background: var(--color-paper-3); padding: 3px; border-radius: var(--radius-input); }
 nav button { background: none; border: 0; padding: 7px 12px; border-radius: 5px; color: var(--muted); font-size: 14px; font-weight: 500; cursor: pointer; }
 nav button:hover { color: var(--text); }

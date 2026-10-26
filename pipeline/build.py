@@ -65,7 +65,7 @@ def run(name, only, fn):
 
 
 def stamp_assets():
-    """Add ?v=<content hash> to the script and stylesheet links so browsers never serve stale files."""
+    """Add ?v=<content hash> to the script, stylesheet and icon links so browsers never serve stale files."""
     import hashlib
     import re
     page = ROOT / "site" / "index.html"
@@ -76,7 +76,7 @@ def stamp_assets():
         digest = hashlib.md5(path.read_bytes()).hexdigest()[:8] if path.exists() else "0"
         return f'{m.group(1)}{m.group(2)}?v={digest}"'
 
-    new = re.sub(r'((?:src|href)=")((?:js/[\w-]+\.js|style\.css))(?:\?v=\w+)?"', tag, html)
+    new = re.sub(r'((?:src|href)=")((?:js/[\w-]+\.js|style\.css|img/[\w-]+\.png))(?:\?v=\w+)?"', tag, html)
     if new != html:
         page.write_text(new, encoding="utf-8")
 
