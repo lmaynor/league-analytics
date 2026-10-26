@@ -24,8 +24,8 @@ async function init() {
 }
 
 /* pull down at the top of the page to reload the data, like a native list */
-/* the small pill at the top: "Pull to refresh", "Updating", "Up to date" */
-const toast = (txt, show) => { const p = $("#ptr"); p.textContent = txt; p.classList.toggle("show", show); };
+/* the small status pill: pull hints sit at the top (the page opens up as you pull); results sit above the tab bar, clear of the header */
+const toast = (txt, show, top = false) => { const p = $("#ptr"); p.textContent = txt; p.classList.toggle("top", top); p.classList.toggle("show", show); };
 
 /* if the page itself was redeployed, reload it so the new scripts and styles load too */
 async function pageIsStale() {
@@ -51,7 +51,7 @@ async function refreshData() {
   addEventListener("touchmove", (e) => {
     if (y0 == null) return;
     dy = e.touches[0].clientY - y0;
-    if (dy > 12) say(dy > 90 ? "Release to refresh" : "Pull to refresh", true);
+    if (dy > 12) say(dy > 90 ? "Release to refresh" : "Pull to refresh", true, true);
     if (dy > 90 && !armed) { armed = true; haptic(); }
   }, { passive: true });
   addEventListener("touchend", async () => {
