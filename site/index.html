@@ -3,7 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#f8fafd">
+<meta name="theme-color" id="theme-color" content="#f8fafd">
+<script>
+  /* set the theme before first paint: saved choice, else the phone's setting */
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem("theme"); } catch (e) {}
+    if (t !== "dark" && t !== "light") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.dataset.theme = t;
+    var m = document.getElementById("theme-color");
+    if (m) m.content = t === "dark" ? "#13161f" : "#f8fafd";
+  })();
+</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -13,7 +24,7 @@
 <link rel="icon" type="image/png" href="img/favicon.png">
 <link rel="apple-touch-icon" href="img/logo.png">
 <link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=2b9134d7">
+<link rel="stylesheet" href="style.css?v=77648d94">
 </head>
 <body>
 <header class="top">
@@ -27,6 +38,9 @@
   <div class="ctl">
     <label>Season <select id="season"></select></label>
   </div>
+  <button id="theme" type="button" aria-label="Switch to dark mode">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path class="moon" d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/><g class="sun"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></g></svg>
+  </button>
 </header>
 <div id="ptr" aria-live="polite"></div>
 <main id="view"></main>
@@ -48,13 +62,13 @@
   <button data-tab="cheerios"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.4"/></svg><span>Red Cheerios</span></button>
   <button data-tab="history"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span>History</span></button>
 </nav>
-<script src="js/core.js?v=d220da54"></script>
+<script src="js/core.js?v=4e9c994f"></script>
 <script src="js/odds.js?v=5ad12384"></script>
 <script src="js/tab-scoreboard.js?v=1a92375e"></script>
 <script src="js/tab-standings.js?v=c2391a8a"></script>
-<script src="js/tab-categories.js?v=4a6b11f9"></script>
+<script src="js/tab-categories.js?v=daf5feeb"></script>
 <script src="js/tab-cheerios.js?v=a40fb0c5"></script>
 <script src="js/tab-history.js?v=59658f3b"></script>
-<script src="js/main.js?v=55400c59"></script>
+<script src="js/main.js?v=c9b5959e"></script>
 </body>
 </html>

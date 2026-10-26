@@ -67,9 +67,9 @@ h2 { font-size: 18px; margin: 28px 0 10px; }
 .tm small { display: block; font: 400 12px var(--font-body); color: var(--muted); letter-spacing: 0; }
 .score { font-size: 28px; font-weight: 600; letter-spacing: var(--tracking-display); text-align: center; line-height: 1; }
 .score small { display: block; font: 500 11px var(--font-display); color: var(--muted); margin-top: 2px; letter-spacing: 0; }
-.wp { display: flex; height: 24px; border-radius: 4px; overflow: hidden; margin-top: 10px; font: 500 12px var(--font-display); color: #fff; border: 1px solid var(--color-rule-2); }
+.wp { display: flex; height: 24px; border-radius: 4px; overflow: hidden; margin-top: 10px; font: 500 12px var(--font-display); color: var(--color-graphite-ink); border: 1px solid var(--color-rule-2); }
 .wp div { display: flex; align-items: center; justify-content: center; min-width: 0; white-space: nowrap; }
-.wp .h { background: var(--color-accent); } .wp .a { background: var(--color-graphite-2); } .wp .t { background: var(--color-rule-2); color: var(--color-ink); }
+.wp .h { background: var(--color-accent); color: var(--color-accent-ink); } .wp .a { background: var(--color-graphite-2); } .wp .t { background: var(--color-rule-2); color: var(--color-ink); }
 .cats { border-top: 1px solid var(--color-rule); }
 .cat { display: grid; grid-template-columns: 74px 1fr 74px; gap: 6px; align-items: center; padding: 7px 14px; border-bottom: 1px solid var(--color-rule); cursor: pointer; }
 .cat:last-child { border-bottom: 0; }
@@ -312,12 +312,44 @@ button, .cat, .sw, .tile { touch-action: manipulation; }
 @media (max-width: 340px) { .chips { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); } }
 
 /* team names wrap inside their cell instead of bleeding into the next column */
-td.l, th.l { white-space: normal; overflow-wrap: anywhere; }
+td.l, th.l { white-space: normal; overflow-wrap: break-word; }
 td.l b { display: block; }
-.tbl-wrap td.l:nth-child(2) { min-width: 120px; max-width: 190px; }
+.tbl-wrap td.l:has(> b) { min-width: 120px; max-width: 190px; }
 
 @media (max-width: 700px) {
   /* each card spans the full width of the phone (minus the page margin); the tile strip shows what's next */
   .deck > .card { flex: 0 0 100%; }
   .tile .tt { font: 500 11px var(--font-display); letter-spacing: 0; text-transform: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
+
+/* ---------------------------------------------------------------- dark theme */
+:root { --heat-good: oklch(52% 0.19 258); --heat-bad: oklch(36% 0.022 260); color-scheme: light; }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-paper: oklch(19% 0.024 262); --color-paper-2: oklch(22.5% 0.026 262); --color-paper-3: oklch(27% 0.028 262);
+  --color-ink: oklch(95% 0.01 250); --color-ink-2: oklch(83% 0.015 255); --color-muted: oklch(70% 0.02 256);
+  --color-rule: oklch(30% 0.025 262); --color-rule-2: oklch(39% 0.03 262);
+  --color-graphite: oklch(13% 0.02 262); --color-graphite-2: oklch(50% 0.04 258); --color-graphite-ink: oklch(97% 0.006 250); --color-graphite-muted: oklch(72% 0.022 256);
+  --color-accent: oklch(66% 0.17 258); --color-accent-2: oklch(76% 0.13 254); --color-accent-wash: oklch(27% 0.06 258);
+  --color-accent-ink: oklch(14% 0.03 262); --color-accent-deep: oklch(79% 0.13 256); --color-accent-edge: oklch(48% 0.15 260);
+  --color-key-face: oklch(25% 0.026 262); --color-key-edge: oklch(12% 0.02 262);
+  --shadow-card: none;
+  --heat-good: oklch(66% 0.17 258); --heat-bad: oklch(72% 0.02 258);
+}
+:root[data-theme="dark"] .logo { filter: brightness(.92); }
+
+/* theme toggle */
+#theme { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--color-rule-2); border-radius: 50%;
+  background: var(--color-key-face); color: var(--text); cursor: pointer; padding: 0; transition: transform var(--dur-micro) ease-out; }
+#theme svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#theme .sun { display: none; }
+:root[data-theme="dark"] #theme .sun { display: inline; }
+:root[data-theme="dark"] #theme .moon { display: none; }
+#theme:active { transform: scale(.92); }
+#theme:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+@media (max-width: 700px) {
+  .brand { order: 0; }
+  #theme { order: 1; margin-left: auto; }
+  .ctl { order: 2; }
+}
+@media (prefers-reduced-motion: reduce) { #theme { transition: none; } }

@@ -4,7 +4,7 @@ function cats() {
   const rows = [...d.standings].sort((a, b) => a.power - b.power);
   const color = (z) => {
     const a = Math.min(Math.abs(z) / 2, 1) * 0.55;
-    return z >= 0 ? `oklch(52% 0.19 258 / ${a})` : `oklch(36% 0.022 260 / ${a * 0.8})`;
+    return z >= 0 ? `color-mix(in oklch, var(--heat-good) ${a * 100}%, transparent)` : `color-mix(in oklch, var(--heat-bad) ${a * 80}%, transparent)`;
   };
   panel().innerHTML = `<h1>${d.season} Category Strength</h1>
     <div class="sub">Per-week average for each category, with league rank. Color shows how far above or below the league average (turnovers are flipped: low is good).</div>

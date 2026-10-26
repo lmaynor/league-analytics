@@ -14,6 +14,16 @@ const j = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null
 
 const TABS = {};
 
+/* Light/dark: the head script sets data-theme before paint; this flips it and remembers the choice. */
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  store.set("theme", t);
+  const m = document.getElementById("theme-color");
+  if (m) m.content = t === "dark" ? "#13161f" : "#f8fafd";
+  const b = document.getElementById("theme");
+  if (b) b.setAttribute("aria-label", t === "dark" ? "Switch to light mode" : "Switch to dark mode");
+}
+
 /* Light haptic tick on touch devices. Android vibrates; iOS Safari has no vibrate API, but toggling a
    hidden switch checkbox from a tap gives the system tick (iOS 17.4+). Off when reduced motion is set. */
 const canTick = matchMedia("(pointer: coarse)").matches && !matchMedia("(prefers-reduced-motion: reduce)").matches;

@@ -8,6 +8,9 @@ async function init() {
   $("#season").innerHTML = [...meta.seasons].reverse().map((s) => `<option ${s === S.season ? "selected" : ""}>${s}</option>`).join("");
   $("#season").onchange = async (e) => { S.season = +e.target.value; S.week = null; await loadSeason(); render(); };
   document.querySelectorAll("#tabs button, #tabbar button").forEach((b) => (b.onclick = () => { if (b.closest("#tabbar")) haptic(); go(b.dataset.tab); }));
+  const tb = $("#theme");
+  setTheme(document.documentElement.dataset.theme || "light");
+  tb.onclick = () => { haptic(); setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"); };
   await loadSeason();
   // old links (#sweat, #scores, #cats) still work
   const alias = { sweat: ["scoreboard", "full"], scores: ["scoreboard", "compact"], cats: ["standings", "categories"], regret: ["cheerios", ""], absences: ["cheerios", ""] };
