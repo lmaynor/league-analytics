@@ -71,31 +71,17 @@ def baselines(days):
     return {pid: {k: v / n[pid] for k, v in tot[pid].items()} for pid in n if n[pid] >= MIN_GAMES_FOR_BASELINE}, n
 
 
-HEALTHY = (None, "ACTIVE", "NORMAL")
-
-
 def missed_by_team_day(days, games_done, base):
     """{team_id: {sp: [(pid, name)]}} starters who sat out a game their NBA team played.
 
-    A lone one-game absence with no injury flag is treated as rest and ignored. A miss counts
-    when ESPN flagged the player (Out, Day-to-Day, ...) or he also missed a neighboring team game."""
-    log = defaultdict(list)  # pid -> [(sp, team_id, name, slot, played, inj)] for games his team finished
-    for sp in sorted(days):
-        for tid, rows in days[sp].items():
+    Injuries and rest days both count: the data does not say which, and an empty slot costs the same."""
+    out = defaultdict(lambda: defaultdict(list))
+    for sp, teams in days.items():
+        for tid, rows in teams.items():
             for row in rows:
                 pid, name, pro, slot, played = row[0], row[1], row[2], row[3], row[4]
-                if games_done.get((sp, pro)):
-                    log[pid].append((sp, tid, name, slot, played, row[6] if len(row) > 6 else None))
-    out = defaultdict(lambda: defaultdict(list))
-    for pid, games in log.items():
-        if pid not in base:
-            continue
-        for i, (sp, tid, name, slot, played, inj) in enumerate(games):
-            if played or slot not in ACTIVE_SLOTS:
-                continue
-            neighbor_out = (i > 0 and not games[i - 1][4]) or (i + 1 < len(games) and not games[i + 1][4])
-            if inj not in HEALTHY or neighbor_out:
-                out[tid][sp].append((pid, name))
+                if slot in ACTIVE_SLOTS and not played and games_done.get((sp, pro)) and pid in base:
+                    out[tid][sp].append((pid, name))
     return out
 
 

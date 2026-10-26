@@ -8,7 +8,7 @@ function cheerios() {
   const rec = (r) => `${r[0]}-${r[1]}${r[2] ? `-${r[2]}` : ""}`;
   const seg = `<div class="toolbar"><div class="seg">${[...years].reverse().map((y) => `<button class="${y === S.regYear ? "on" : ""}" onclick="S.regYear='${y}';cheerios()">${y}</button>`).join("")}</div></div>`;
   $("#view").innerHTML = `<h1>Red Cheerios</h1>
-    <div class="sub">Starters who sat out a game their NBA team played. A lone one-game absence with no injury flag counts as rest and is ignored. Healthy adds each missed game's usual production back and re-scores the week against the opponent's real totals. ${a.complete ? "" : "Includes the week in progress, so it can still change."}</div>${seg}
+    <div class="sub">Starters who sat out a game their NBA team played, hurt or resting. Healthy adds each missed game's usual production back and re-scores the week against the opponent's real totals. ${a.complete ? "" : "Includes the week in progress, so it can still change."}</div>${seg}
     <div class="card tbl-wrap" style="margin-top:6px"><table class="sortable">
       <tr><th class="l">Team</th><th>Games Missed</th><th>Wins Lost</th><th>Wins Gifted</th><th>Record</th><th>Healthy</th><th class="l mm-head">Most Missed</th></tr>
       ${a.teams.map((t) => `<tr><td class="l"><b>${esc(t.team)}</b><span class="sub">${esc(t.owner)}</span>${t.most_missed.length ? `<div class="mm mm-phone">${t.most_missed.map((m) => `<span class="mchip" title="${esc(m.name)}">${esc(initialed(m.name))} <b>${m.games}</b></span>`).join("")}</div>` : ""}</td><td>${t.games_missed}</td>
