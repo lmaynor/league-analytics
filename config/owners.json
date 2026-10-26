@@ -1,50 +1,57 @@
 {
-  "{05209CDF-0AAC-42C2-8B5F-75D8FED002BD}": {
-    "name": "FREEDUB",
-    "espn_handle": "ESPNfan1229899511"
+  "a7838cf23d": {
+    "name": "Luc"
   },
-  "{31D6C56C-1B49-4A55-BDEA-CFEE6929B1EE}": {
-    "name": "Los Angeles Diode",
-    "espn_handle": "ESPNFAN7167010669",
-    "color_slot": 4
+  "957eb2debb": {
+    "name": "Joseph"
   },
-  "{3751508E-7502-4466-8C19-1990677B6D03}": {
-    "name": "San Bernardino Plant",
-    "espn_handle": "ESPNFAN3347643131"
+  "c9c4daeae4": {
+    "name": "Vincent"
   },
-  "{49256580-A795-465F-B350-41CE0D41D15C}": {
-    "name": "LA Complex",
-    "espn_handle": "ESPNFAN8984266851",
-    "color_slot": 5
+  "8819e65d13": {
+    "name": "Kenneth"
   },
-  "{85DD3B8B-66DA-4AF8-B656-35EECB5FA797}": {
-    "name": "im tired grandpa",
-    "espn_handle": "ESPNFAN1153067874",
-    "color_slot": 3
+  "3d12900725": {
+    "name": "Matt"
   },
-  "{8C376D24-B8B2-4963-986C-6392FAE80F2C}": {
-    "name": "Julian's Scary Team",
-    "espn_handle": "espnfan8335243358",
-    "color_slot": 7
+  "9ba342afd4": {
+    "name": "Jonathan"
   },
-  "{92E371C5-100E-46E9-A5D4-91BE1DF96907}": {
-    "name": "Cornell Medical Center",
-    "espn_handle": "JomDom",
-    "color_slot": 2
+  "09b2be4050": {
+    "name": "Gerardo"
   },
-  "{940B284E-DC84-4B5C-9B2D-399F0FB41517}": {
-    "name": "Los ye",
-    "espn_handle": "ESPNfan7745782644",
-    "color_slot": 6
+  "e88328ba7f": {
+    "name": "Louis"
   },
-  "{B560655B-0257-4F6D-802F-A70599E2B05E}": {
-    "name": "Wembanyahus",
-    "espn_handle": "espn71133857",
-    "color_slot": 1
+  "c337d9f31b": {
+    "name": "Bryan"
   },
-  "{B6615023-2FF1-4A46-AE49-1B59F9C30CA9}": {
-    "name": "B2-Bombers",
-    "espn_handle": "ESPNFAN2979093890",
-    "color_slot": 8
+  "6c6e45be6b": {
+    "name": "Kristoffer"
+  },
+  "4edb72bc48": {
+    "name": "Elezar"
+  },
+  "4b7281993d": {
+    "name": "Steven"
+  },
+  "e65703d31d": {
+    "name": "Victor"
+  },
+  "b40a729a73": {
+    "name": "John"
+  },
+  "92c5db4b79": {
+    "name": "Elezar",
+    "same_as": "4edb72bc48"
+  },
+  "18c5c8e0ac": {
+    "name": "Mark"
+  },
+  "30d321fcdf": {
+    "name": "Edward"
+  },
+  "8ca28c45e6": {
+    "name": "Rafael"
   }
 }

@@ -1,136 +1,177 @@
-"""Pull and cache raw ESPN data for every season of the league.
+"""Pull category-league data from ESPN into data/raw/<season>/.
 
-Usage:
-  python pipeline/fetch.py            # all seasons (past seasons cached once, current refreshed)
-  python pipeline/fetch.py 2026       # one season
-  python pipeline/fetch.py --force    # refetch everything
-
-Layout:
-  data/raw/{season}/league.json        settings, teams, members, matchups (+ games used per side)
-  data/raw/{season}/proschedule.json   NBA schedule by scoring period (day)
-  data/raw/{season}/days/{sp}.json     compact daily rosters: slot + points + games played per player
+    python pipeline/fetch.py            # all seasons that have category data
+    python pipeline/fetch.py 2027       # one season
 """
+import hashlib
 import json
-import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from espn_client import ESPNClient, ROOT  # noqa: E402
+from espn_client import BASE, ROOT, ESPNClient
+import os
 
 RAW = ROOT / "data" / "raw"
-CURRENT = int(os.environ.get("SEASON", 2027))
-REFRESH_DAYS = 3  # re-pull the last N days of the current season (stat corrections)
-WORKERS = 4
-
-
-def _write(path, data):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
+CURRENT = int(os.environ.get("SEASON", "2027"))
+HEALTHY = (None, "ACTIVE", "NORMAL")
+DAILY_STATS = ["0", "1", "2", "3", "6", "11", "13", "14", "15", "16", "17"]
+REFRESH_DAYS = 3  # re-pull the most recent days of the current season (late stat corrections)
+WORKERS = 6
+# seasons that get daily rosters (Red Cheerios feature); override with DAILY_SEASONS=2025,2026,2027
+DAILY = {int(x) for x in os.environ.get("DAILY_SEASONS", f"{CURRENT - 1},{CURRENT}").split(",") if x}
+VIEWS = ["mSettings", "mTeam", "mBoxscore", "mMatchupScore", "mStatus"]
 
 
 def _read(path):
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
-def _day_stat(stats, sp, source):
-    """The single-day stat line (split 5) for scoring period sp; source 0=actual, 1=projected."""
-    for s in stats or []:
-        if s.get("scoringPeriodId") == sp and s.get("statSourceId") == source and s.get("statSplitTypeId") == 5:
-            return s
-    return None
+def _write(path, obj):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(obj, separators=(",", ":")), encoding="utf-8")
+
+
+def hid(guid):
+    """Short stable hash of an ESPN account GUID (keeps GUIDs out of the repo)."""
+    return hashlib.sha1((guid or "").encode()).hexdigest()[:10] if guid else None
 
 
 def scrub_members(members):
-    """Keep only id + ESPN handle; real names and settings never get written (the repo is public)."""
-    return [{"id": m["id"], "displayName": m.get("displayName")} for m in members or []]
+    """Keep only the public display names (drop everything else ESPN returns)."""
+    return [{"id": hid(m.get("id")), "displayName": m.get("displayName")} for m in (members or [])]
+
+
+def has_category_data(league):
+    return any(
+        (m.get("home", {}).get("cumulativeScore") or {}).get("scoreByStat")
+        for m in league.get("schedule", [])
+    )
+
+
+def compact_roster(raw, season):
+    """Current rosters: just what the projection needs."""
+    out = {}
+    for t in raw.get("teams", []):
+        players = []
+        for e in t.get("roster", {}).get("entries", []):
+            p = e["playerPoolEntry"]["player"]
+            avgs = {}
+            for s in p.get("stats", []):
+                if s.get("statSplitTypeId") in (0, 1, 2, 3) and s.get("averageStats"):
+                    avgs[s["id"]] = {"avg": s["averageStats"], "gp": (s.get("stats") or {}).get("42")}
+                elif s.get("statSourceId") == 1 and s.get("statSplitTypeId") == 0 and s.get("averageStats"):
+                    avgs[s["id"]] = {"avg": s["averageStats"], "gp": None}
+            players.append({
+                "id": e["playerId"], "name": p["fullName"], "pro": p.get("proTeamId"),
+                "slot": e["lineupSlotId"], "inj": e.get("injuryStatus") or p.get("injuryStatus"),
+                "pos": p.get("defaultPositionId"), "stats": avgs,
+            })
+        out[str(t["id"])] = players
+    return out
+
+
+def compact_schedule(raw):
+    """NBA game start times / official-ness per team per scoring period."""
+    games = {}
+    teams = {}
+    for t in raw["settings"]["proTeams"]:
+        teams[str(t["id"])] = t.get("abbrev")
+        for sp, gs in (t.get("proGamesByScoringPeriod") or {}).items():
+            for g in gs:
+                games[str(g["id"])] = {"sp": int(sp), "home": g["homeProTeamId"], "away": g["awayProTeamId"],
+                                       "t": g["date"], "final": bool(g.get("statsOfficial"))}
+    return {"teams": teams, "games": list(games.values())}
 
 
 def compact_day(raw, sp):
+    """One day's rosters: who sat in which slot and what each player did that day.
+
+    ESPN returns the player's latest game line, so a game only counts for this day when the
+    line's scoring period matches; otherwise the player did not play."""
     teams = {}
     for t in raw.get("teams", []):
         rows = []
         for e in t.get("roster", {}).get("entries", []):
-            p = e.get("playerPoolEntry", {}).get("player", {})
-            act = _day_stat(p.get("stats"), sp, 0)
-            proj = _day_stat(p.get("stats"), sp, 1)
-            rows.append({
-                "id": e["playerId"],
-                "name": p.get("fullName"),
-                "pro": p.get("proTeamId"),
-                "elig": p.get("eligibleSlots", []),
-                "slot": e.get("lineupSlotId"),
-                "inj": e.get("injuryStatus") or p.get("injuryStatus"),
-                "pts": act.get("appliedTotal") if act else None,
-                "gp": (act.get("stats") or {}).get("42") if act else None,
-                "proj": proj.get("appliedTotal") if proj else None,
-            })
+            p = e["playerPoolEntry"]["player"]
+            # ESPN can send two game lines (the previous game and this day's): take the one for this day
+            line = next((x for x in p.get("stats", []) if x.get("statSplitTypeId") == 5 and x.get("statSourceId") == 0
+                         and x.get("scoringPeriodId") == sp), None)
+            line_stats = (line or {}).get("stats") or {}
+            # an empty line (stats {}) is how ESPN reports a player who did not play that day
+            played = bool(line and line.get("scoringPeriodId") == sp and line_stats and line_stats.get("42", 1) != 0)
+            stats = {k: (line_stats.get(k) or 0) for k in DAILY_STATS} if played else None
+            rows.append([e["playerId"], p["fullName"], p.get("proTeamId"), e["lineupSlotId"], int(played), stats, p.get("injuryStatus")])
         teams[str(t["id"])] = rows
     return {"sp": sp, "teams": teams}
 
 
-def season_days(league, season):
-    """Scoring periods to pull: every day covered by a matchup (past) or played so far (current)."""
+def fetch_days(c, season, league):
+    d = RAW / str(season) / "days"
+    st = league["status"]
+    first, last = st.get("firstScoringPeriod", 1), st.get("finalScoringPeriod") or 1
     if season == CURRENT:
-        return list(range(1, (league.get("status") or {}).get("latestScoringPeriod", 1) + 1))
-    sps = set()
-    for m in league.get("schedule", []):
-        for side in ("home", "away"):
-            sps |= {int(k) for k in ((m.get(side) or {}).get("pointsByScoringPeriod") or {})}
-    return sorted(range(min(sps), max(sps) + 1)) if sps else []
-
-
-def fetch_season(c, season, force=False):
-    d = RAW / str(season)
-    is_current = season == CURRENT
-
-    league_path = d / "league.json"
-    league = None if (force or is_current) else _read(league_path)
-    if league is None:
-        league = c.league(season, ["mSettings", "mTeam", "mMatchupScore", "mStatus"])
-        if league is None:
-            print(f"{season}: not available")
-            return
-        league["members"] = scrub_members(league.get("members"))
-        _write(league_path, league)
-
-    sched_path = d / "proschedule.json"
-    if force or is_current or not sched_path.exists():
-        _write(sched_path, c.pro_schedule(season))
-
-    # ESPN's preseason draft ranks (set before the season): the starting estimate for rookies
-    ranks_path = d / "ranks.json"
-    if force or not ranks_path.exists():
-        pool = (c.players(season, limit=1000) or {}).get("players", [])
-        ranks = {str(p["id"]): r["rank"] for p in pool
-                 if (r := (p["player"].get("draftRanksByRankType") or {}).get("STANDARD")) and r.get("rank")}
-        _write(ranks_path, ranks)
-
-    days = season_days(league, season)
-    recent = set(days[-REFRESH_DAYS:]) if is_current else set()
-    todo = [sp for sp in days if force or sp in recent or not (d / "days" / f"{sp}.json").exists()]
+        last = min(last, league.get("scoringPeriodId") or last)
+    days = list(range(first, last + 1))
+    recent = set(days[-REFRESH_DAYS:]) if season == CURRENT else set()
+    todo = [sp for sp in days if sp in recent or not (d / f"{sp}.json").exists()]
 
     def pull(sp):
         raw = c.league(season, ["mRoster"], scoring_period=sp)
-        _write(d / "days" / f"{sp}.json", compact_day(raw, sp))
+        day = compact_day(raw, sp)
+        old = _read(d / f"{sp}.json")
+        if old:  # ESPN only reports the status as of now: keep a flag seen on an earlier pull
+            seen = {r[0]: r[6] for rows in old["teams"].values() for r in rows if len(r) > 6 and r[6] not in HEALTHY}
+            for rows in day["teams"].values():
+                for r in rows:
+                    if r[6] in HEALTHY and r[0] in seen:
+                        r[6] = seen[r[0]]
+        _write(d / f"{sp}.json", day)
 
     with ThreadPoolExecutor(WORKERS) as ex:
         list(ex.map(pull, todo))
-    print(f"{season}: {len(days)} days ({len(todo)} fetched, {len(days) - len(todo)} cached)")
+    print(f"{season}: {len(days)} days ({len(todo)} fetched)")
+
+
+def fetch_season(c, season):
+    d = RAW / str(season)
+    league = c.league(season, VIEWS)
+    if league is None or not has_category_data(league):
+        print(f"{season}: no category data, skipped")
+        return False
+    league["members"] = scrub_members(league.get("members"))
+    for t in league.get("teams", []):
+        t["owners"] = [hid(o) for o in t.get("owners", [])]
+        t["primaryOwner"] = hid(t.get("primaryOwner"))
+    _write(d / "league.json", league)
+    n = len(league["schedule"])
+    print(f"{season}: {len(league['teams'])} teams, {n} matchups")
+    if season in DAILY:
+        if season != CURRENT:
+            _write(d / "proschedule.json", compact_schedule(c.pro_schedule(season)))
+        fetch_days(c, season, league)
+    if season == CURRENT:
+        sp = league.get("scoringPeriodId")
+        _write(d / "roster.json", compact_roster(c.league(season, ["mRoster"], scoring_period=sp), season))
+        _write(d / "proschedule.json", compact_schedule(c.pro_schedule(season)))
+    return True
 
 
 def main():
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    force = "--force" in sys.argv
+    args = [int(a) for a in sys.argv[1:] if not a.startswith("--")]
     c = ESPNClient()
     if args:
-        seasons = [int(a) for a in args]
+        seasons = args
     else:
         cur = c.league(CURRENT, ["mStatus"])
         seasons = (cur.get("status", {}).get("previousSeasons") or []) + [CURRENT]
     for s in seasons:
-        fetch_season(c, s, force)
+        try:
+            fetch_season(c, s)
+        except PermissionError as e:
+            if s == CURRENT:
+                raise
+            print(f"{s}: skipped ({e})")
 
 
 if __name__ == "__main__":
