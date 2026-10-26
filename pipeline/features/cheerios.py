@@ -142,7 +142,7 @@ def build_season(season, data, rows, teams, days, games_done, fallback=None):
                 sides[key] = {"games": len(names), "missed": [{"name": n, "games": g} for n, g in sorted(by.items(), key=lambda kv: -kv[1])],
                               "actual": [aw, al, at], "healthy": [hw, hl, ht], "cats_lost": max(0, hw - aw), "flips": hres > ares}
             live.append({"home": r["home"], "away": r["away"], "mp": r["mp"], **sides})
-        if r["tier"].endswith("CONSOLATION_LADDER") or not r["hs"].get("0"):  # the week in progress counts too, as it stands
+        if r["tier"].endswith("CONSOLATION_LADDER") or not r["hs"].get("0") or (r.get("sp_est") and not r["regular"]):  # the week in progress counts too, as it stands; estimated playoff weeks can be wrong
             continue
         sides = ((r["home"], r["away"], r["hs"], r["as"]), (r["away"], r["home"], r["as"], r["hs"]))
         for me, opp, mine, theirs in sides:

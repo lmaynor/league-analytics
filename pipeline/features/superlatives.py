@@ -1,4 +1,4 @@
-"""Player superlatives: yearbook-style awards from the daily rosters (Most Likely to Be Out, Block Party...)."""
+"""All-time player superlatives from the daily rosters: each award goes to the best season (or single game) on record."""
 import json
 import statistics
 
@@ -72,7 +72,7 @@ def collect(days, games_done):
 
 
 def build(per_season, raw):
-    recs = []
+    cand = {}  # award title -> [(score, higher_wins, record)] across every season
     for season in sorted(per_season):
         days = load_days(raw, season)
         sched_path = raw / str(season) / "proschedule.json"
@@ -84,9 +84,10 @@ def build(per_season, raw):
         teams = per_season[season][2]
         owners = lambda a: ", ".join(sorted({teams[int(t)]["owner_name"] for t in a["teams"]})[:3])
 
-        def add(group, title, blurb, a, value):
-            recs.append({"group": group, "title": title, "blurb": blurb, "who": a["name"], "team": owners(a), "season": season,
-                         "when": str(season), "vs": "", "value": value, "extra": None, "new": season == CURRENT})
+        def add(group, title, blurb, a, value, score, hi=True):
+            rec = {"group": group, "title": title, "blurb": blurb, "who": a["name"], "team": owners(a), "season": season,
+                   "when": str(season), "vs": "", "value": value, "extra": None, "new": season == CURRENT}
+            cand.setdefault(title, []).append((score, hi, rec))
 
         def top(key, hi=True, pool=None):
             return (max if hi else min)(pool or list(agg.values()), key=key)
@@ -94,54 +95,56 @@ def build(per_season, raw):
         regulars = [a for a in agg.values() if a["gp"] >= MIN_GP]
         # personalities
         w = top(lambda a: a["missed"])
-        add("yearbook", "Most Likely to Be Out Tonight", "Most starter games missed.", w, f"{w['missed']} games")
+        add("yearbook", "Most Likely to Be Out Tonight", "Most starter games missed in a season.", w, f"{w['missed']} games", w["missed"])
         w = top(lambda a: a["best_run"])
-        add("yearbook", "Iron Man", "Longest run of his team's games played without missing one.", w, f"{w['best_run']} straight")
+        add("yearbook", "Iron Man", "Longest run of his team's games played without missing one.", w, f"{w['best_run']} straight", w["best_run"])
         w = top(lambda a: len(a["teams"]))
         if len(w["teams"]) > 1:
-            add("yearbook", "Most Well-Traveled", "Wore the most fantasy jerseys in one season.", w, f"{len(w['teams'])} teams")
+            add("yearbook", "Most Well-Traveled", "Wore the most fantasy jerseys in one season.", w, f"{len(w['teams'])} teams", len(w["teams"]))
         w = top(lambda a: a["bench"])
         if w["bench"]:
-            add("yearbook", "Wasted Talent", "Most games played while sitting on a fantasy bench.", w, f"{w['bench']} games")
+            add("yearbook", "Wasted Talent", "Most games played while sitting on a fantasy bench in a season.", w, f"{w['bench']} games", w["bench"])
         w = top(lambda a: a["dd"])
-        add("yearbook", "Double-Double Machine", "Most games with 10 points and 10 rebounds.", w, f"{w['dd']} games")
+        add("yearbook", "Double-Double Machine", "Most games with 10 points and 10 rebounds in a season.", w, f"{w['dd']} games", w["dd"])
         w = top(lambda a: a["g30"])
-        add("yearbook", "Heat Check", "Most 30-point games.", w, f"{w['g30']} games")
+        add("yearbook", "Heat Check", "Most 30-point games in a season.", w, f"{w['g30']} games", w["g30"])
         if regulars:
             cv = lambda a: statistics.pstdev(a["scores"]) / max(statistics.mean(a["scores"]), 1)
             w = top(cv, False, regulars)
-            add("yearbook", "Mr. Consistent", f"Steadiest night to night (min. {MIN_GP} starts).", w, f"{statistics.mean(w['scores']):.0f} avg, ±{statistics.pstdev(w['scores']):.0f}")
+            add("yearbook", "Mr. Consistent", f"Steadiest night to night in a season (min. {MIN_GP} starts).", w, f"{statistics.mean(w['scores']):.0f} avg, ±{statistics.pstdev(w['scores']):.0f}", cv(w), False)
             w = top(cv, True, regulars)
-            add("yearbook", "Boom or Bust", f"Wildest swings night to night (min. {MIN_GP} starts).", w, f"{statistics.mean(w['scores']):.0f} avg, ±{statistics.pstdev(w['scores']):.0f}")
+            add("yearbook", "Boom or Bust", f"Wildest swings night to night in a season (min. {MIN_GP} starts).", w, f"{statistics.mean(w['scores']):.0f} avg, ±{statistics.pstdev(w['scores']):.0f}", cv(w))
         w = top(lambda a: a["best_day"][0])
         s = w["best_day"][2]
         add("yearbook", "Stat Sheet Stuffer", "Biggest single game: points, rebounds, assists, steals, blocks and threes combined.", w,
-            f"{s['0']:.0f} PTS, {s['6']:.0f} REB, {s['3']:.0f} AST")
+            f"{s['0']:.0f} PTS, {s['6']:.0f} REB, {s['3']:.0f} AST", w["best_day"][0])
         # volume kings
         for sid, title, blurb, unit in KINGS:
             w = top(lambda a: a["tot"][sid])
-            add("kings", title, blurb, w, f"{w['tot'][sid]:.0f} {unit}")
+            add("kings", title, blurb.replace(".", " in a season."), w, f"{w['tot'][sid]:.0f} {unit}", w["tot"][sid])
         fg = [a for a in agg.values() if a["tot"]["14"] >= MIN_FGA]
         ft = [a for a in agg.values() if a["tot"]["16"] >= MIN_FTA]
         rate = lambda a, m, t: a["tot"][m] / a["tot"][t]
         if fg:
             w = top(lambda a: rate(a, "13", "14"), True, fg)
-            add("kings", "Mr. Efficient", f"Best FG% while starting (min. {MIN_FGA} attempts).", w, f"{rate(w, '13', '14') * 100:.1f}% FG")
+            add("kings", "Mr. Efficient", f"Best FG% in a season while starting (min. {MIN_FGA} attempts).", w, f"{rate(w, '13', '14') * 100:.1f}% FG", rate(w, "13", "14"))
         if ft:
             w = top(lambda a: rate(a, "15", "16"), True, ft)
-            add("kings", "Mr. Automatic", f"Best FT% while starting (min. {MIN_FTA} attempts).", w, f"{rate(w, '15', '16') * 100:.1f}% FT")
+            add("kings", "Mr. Automatic", f"Best FT% in a season while starting (min. {MIN_FTA} attempts).", w, f"{rate(w, '15', '16') * 100:.1f}% FT", rate(w, "15", "16"))
         # single-game highs
         for sid, title, blurb, unit, shame in SINGLE:
             w = top(lambda a: a["single"].get(sid, (0, 0))[0])
-            add("shame" if shame else "games", title, blurb, w, f"{w['single'][sid][0]:.0f} {unit}")
+            add("shame" if shame else "games", title, blurb, w, f"{w['single'][sid][0]:.0f} {unit}", w["single"][sid][0])
         # shame
         if fg:
             w = top(lambda a: rate(a, "13", "14"), False, fg)
-            add("shame", "Brick Mason", f"Worst FG% while starting (min. {MIN_FGA} attempts).", w, f"{rate(w, '13', '14') * 100:.1f}% FG")
+            add("shame", "Brick Mason", f"Worst FG% in a season while starting (min. {MIN_FGA} attempts).", w, f"{rate(w, '13', '14') * 100:.1f}% FG", rate(w, "13", "14"), False)
         if ft:
             w = top(lambda a: rate(a, "15", "16"), False, ft)
-            add("shame", "Can't Buy a Free One", f"Worst FT% while starting (min. {MIN_FTA} attempts).", w, f"{rate(w, '15', '16') * 100:.1f}% FT")
+            add("shame", "Can't Buy a Free One", f"Worst FT% in a season while starting (min. {MIN_FTA} attempts).", w, f"{rate(w, '15', '16') * 100:.1f}% FT", rate(w, "15", "16"), False)
         if regulars:
             w = top(lambda a: a["tot"]["0"] / a["gp"], False, regulars)
-            add("shame", "Invisible Man", f"Fewest points per game while starting (min. {MIN_GP} starts).", w, f"{w['tot']['0'] / w['gp']:.1f} PPG")
+            add("shame", "Invisible Man", f"Fewest points per game in a season while starting (min. {MIN_GP} starts).", w, f"{w['tot']['0'] / w['gp']:.1f} PPG", w["tot"]["0"] / w["gp"], False)
+    # the best entry for each award, across every season; the earliest wins a tie
+    recs = [(max if items[0][1] else min)(items, key=lambda x: x[0])[2] for items in cand.values()]
     return {"records": recs}

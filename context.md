@@ -41,10 +41,10 @@ Each feature writes its own file (`live.json`, `records.json`, `cheerios.json`, 
 - **Swing** = how much a category moves matchup win chance. **Sweat** = swing x how open the category is.
 - **xWin** = each week, matchups your totals would win against all other teams, summed. **Luck** = actual wins - xWin.
 - **Power** = 60% season category win rate + 40% last four weeks.
-- **Red Cheerios:** a "miss" is a starter in an active slot on a day his NBA team played who did not play. Injuries and rest days both count. Each miss adds his per-game average back to the team's totals and the week is re-scored against the real opponent. Only the last two seasons have daily rosters (`DAILY_SEASONS`).
+- **Red Cheerios:** a "miss" is a starter in an active slot on a day his NBA team played who did not play. Injuries and rest days both count. Each miss adds his per-game average back to the team's totals and the week is re-scored against the real opponent. Daily rosters are cached for every season since 2018; the nightly refresh only pulls the newest days (`DAILY_SEASONS`, default the last two seasons).
 - **Race for Last:** the rest of the regular season is simulated 10,000 times from category strength (this season blended with the owner's share last season) and the real schedule; the live week uses live odds. The win model (K = 5.73) was fit on 2018-2026 matchups. Finished seasons use the real order.
 - **Bench Regret:** lineups lock for the week, so a swap is a whole week: a benched player who played is swapped into the slot of a starter he was eligible to replace (`eligibleSlots` is stored in the daily rows), his week of real stats against the starter's, and swaps that improve the matchup result are shown. Hindsight only, since nothing can change once the lock holds.
-- **Records / Superlatives:** single-week records skip All-Star breaks and two-week finals; the week in progress is excluded. Superlatives count games in a starting slot; the current season is held back until it has 14 days.
+- **Records / Superlatives:** single-week records skip All-Star breaks and two-week finals; the week in progress is excluded. Superlatives are **all-time**: each award goes to the single best season or game across every season on record, shown once with its year; they count games in a starting slot, and the current season is held back until it has 14 days.
 
 ## ESPN quirks learned the hard way
 
@@ -54,6 +54,7 @@ Each feature writes its own file (`live.json`, `records.json`, `cheerios.json`, 
 - `injuryStatus` is only the status as of the fetch, never historical.
 - Without cookies ESPN returns zeroed scores for the current season. Cookies live in `.env` locally and in Actions secrets.
 - **Lineups lock weekly**: `lineupLocktimeType: INDIVIDUAL_FIRSTGAME_WEEKLY`, each player locks at his first game of the matchup week, and slots barely change after day one (about 3% of player-weeks, all before the lock). No mid-week pickups or bench swaps, so injuries stay injuries (Red Cheerios) and the live simulation keeps the current starters.
+- Seasons before 2025 have empty `pointsByScoringPeriod` on schedule entries, and `matchupPeriods` is useless (period n maps to [n]); see the calendar derivation in `matchups.py`.
 - Matchup weeks run Monday to Sunday (ET); the final day comes from the NBA schedule, not the device clock.
 
 ## Deploy and hands-off operation
@@ -85,4 +86,4 @@ Each feature writes its own file (`live.json`, `records.json`, `cheerios.json`, 
 
 - Header wraps in the 701 to 740px width range.
 - Real-device touch (haptics, pull to refresh feel, 44px targets) was never tested off a simulated browser.
-- Superlatives and Red Cheerios cover 2026 and 2027 only until earlier seasons' daily rosters are fetched.
+- Older seasons (2018 to 2024) have no day-by-day week breakdown from ESPN, so their matchup weeks are derived from the NBA calendar (Monday to Sunday ET, an almost empty All-Star week folds into the next). This matched ESPN's own weeks in 2025 and 2026. Estimated playoff weeks are skipped by Red Cheerios because finals can span two weeks.

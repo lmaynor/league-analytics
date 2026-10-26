@@ -67,6 +67,6 @@ The pipeline and the site are both split by feature, so each can change or break
 
 Each feature writes its own file in `site/data/` (`live.json`, `records.json`, `cheerios.json`, `history.json`, `season_<year>.json`). A feature that fails is reported and skipped; the rest still build.
 
-Daily rosters are cached in `data/raw/<season>/days/`. The first fetch of a season pulls about 150 days. After that only the last three days of the current season are refreshed. `DAILY_SEASONS=2025,2026,2027` chooses which seasons get daily data (default: this season and last).
+Daily rosters are cached in `data/raw/<season>/days/`. The first fetch of a season pulls about 150 days (every season since 2018 is already cached in the repo). After that only the last three days of the current season are refreshed. `DAILY_SEASONS=2025,2026,2027` chooses which seasons get daily data (default: this season and last).
 
 Owner display names live in `config/owners.json` (generated from ESPN handles). Edit them to real names or nicknames. Add `"same_as": "<owner id>"` to merge a duplicate account into another owner.

@@ -45,9 +45,10 @@ function histRecords(H) {
 function histSupers() {
   const list = S.supers?.records || [];
   if (!list.length) return `<div class="empty"><p>No superlatives yet. They need daily rosters, which the nightly refresh collects.</p></div>`;
-  const seasons = [...new Set(list.map((r) => r.season))].sort().reverse();
-  return `<div class="sub">Player awards from the daily rosters. Totals count games a player spent in a starting slot.</div>`
-    + seasons.map((y) => `<h2>${y}</h2>` + recGroup(list.filter((r) => r.season === y), "yearbook", "Yearbook", "") + recGroup(list.filter((r) => r.season === y), "kings", "Category Kings", "") + recGroup(list.filter((r) => r.season === y), "games", "Single-Game Highs", "") + recGroup(list.filter((r) => r.season === y), "shame", "Hall of Shame", "")).join("");
+  const years = [...new Set(list.map((r) => r.season))].sort();
+  return `<div class="sub">All-time bests from ${years[0]} to ${years[years.length - 1]}. Each award goes to the single best season or game on record, with the year it happened. Totals count games spent in a starting slot.</div>`
+    + recGroup(list, "yearbook", "Yearbook", "") + recGroup(list, "kings", "Category Kings", "")
+    + recGroup(list, "games", "Single-Game Highs", "") + recGroup(list, "shame", "Hall of Shame", "");
 }
 
 function histH2H(H, owners) {
