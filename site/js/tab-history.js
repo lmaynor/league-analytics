@@ -47,7 +47,7 @@ function histSupers() {
   if (!list.length) return `<div class="empty"><p>No superlatives yet. They need daily rosters, which the nightly refresh collects.</p></div>`;
   const seasons = [...new Set(list.map((r) => r.season))].sort().reverse();
   return `<div class="sub">Player awards from the daily rosters. Totals count games a player spent in a starting slot.</div>`
-    + seasons.map((y) => `<h2>${y}</h2>` + recGroup(list.filter((r) => r.season === y), "yearbook", "Yearbook", "") + recGroup(list.filter((r) => r.season === y), "kings", "Category Kings", "") + recGroup(list.filter((r) => r.season === y), "shame", "Hall of Shame", "")).join("");
+    + seasons.map((y) => `<h2>${y}</h2>` + recGroup(list.filter((r) => r.season === y), "yearbook", "Yearbook", "") + recGroup(list.filter((r) => r.season === y), "kings", "Category Kings", "") + recGroup(list.filter((r) => r.season === y), "games", "Single-Game Highs", "") + recGroup(list.filter((r) => r.season === y), "shame", "Hall of Shame", "")).join("");
 }
 
 function histH2H(H, owners) {
