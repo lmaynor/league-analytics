@@ -8,8 +8,11 @@ import os
 import time
 from pathlib import Path
 
+from season import current_season
+
 ROOT = Path(__file__).resolve().parent.parent
-SEASON = os.environ.get("SEASON", "2027")
+
+SEASON = str(current_season())
 BEFORE_MS = 20 * 60 * 1000          # start a little before tip-off
 AFTER_MS = int(3.5 * 3600 * 1000)   # keep going through the game and ESPN's final stat updates
 

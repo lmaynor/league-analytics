@@ -10,10 +10,11 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from espn_client import BASE, ROOT, ESPNClient
+from season import current_season
 import os
 
 RAW = ROOT / "data" / "raw"
-CURRENT = int(os.environ.get("SEASON", "2027"))
+CURRENT = current_season()
 HEALTHY = (None, "ACTIVE", "NORMAL")
 DAILY_STATS = ["0", "1", "2", "3", "6", "11", "13", "14", "15", "16", "17"]
 REFRESH_DAYS = 3  # re-pull the most recent days of the current season (late stat corrections)

@@ -32,7 +32,7 @@ jobs:
       - name: Is an NBA game on?
         id: gate
         env:
-          SEASON: ${{ vars.SEASON || '2027' }}
+          SEASON: ${{ vars.SEASON }}
         run: python3 pipeline/should_run.py >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-python@v5
@@ -50,12 +50,16 @@ jobs:
           LEAGUE_ID: ${{ secrets.LEAGUE_ID }}
           ESPN_S2: ${{ secrets.ESPN_S2 }}
           SWID: ${{ secrets.SWID }}
-          SEASON: ${{ vars.SEASON || '2027' }}
+          SEASON: ${{ vars.SEASON }}
         run: python pipeline/build.py --fetch
 
       - name: Commit refreshed data
         if: steps.gate.outputs.run == 'true'
         run: |
+          # one commit a night keeps the repo small; the site still redeploys on every run
+          if [ "$GITHUB_EVENT_NAME" != workflow_dispatch ] && ! { [ "$(date -u +%H)" = 05 ] && [ "$(date -u +%M)" -ge 40 ]; }; then
+            echo "Not the end of the night, skipping the commit."; exit 0
+          fi
           git config user.name "league-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/raw site config
