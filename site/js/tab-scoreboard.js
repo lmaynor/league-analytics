@@ -15,11 +15,10 @@ function odds_(lm, id) {
 }
 
 /* Phones: a strip of matchup tiles over a swipe-and-snap row of cards, like a native scoreboard. */
-const abbr = (name) => (String(name).replace(/[^A-Za-z0-9 ]/g, "").trim().split(/\s+/)[0] || "?").slice(0, 3).toUpperCase();
 const isPhone = () => window.matchMedia("(max-width: 700px)").matches;
 function tiles(list) {
-  return `<div class="tiles" id="tiles">${list.map((x, i) => `<button class="tile${i === 0 ? " on" : ""}" onclick="goCard(${i})" aria-label="${esc(x.h)} versus ${esc(x.a)}">
-    <span class="tt">${esc(abbr(x.h))}</span><b>${x.hw}–${x.aw}${x.t ? `–${x.t}` : ""}</b><span class="tt">${esc(abbr(x.a))}</span></button>`).join("")}</div>`;
+  return `<div class="tiles" id="tiles" style="--n:${list.length}">${list.map((x, i) => `<button class="tile${i === 0 ? " on" : ""}" onclick="goCard(${i})" aria-label="${esc(x.h)} versus ${esc(x.a)}">
+    <span class="tt">${esc(x.h)}</span><b>${x.hw}–${x.aw}${x.t ? `–${x.t}` : ""}</b><span class="tt">${esc(x.a)}</span></button>`).join("")}</div>`;
 }
 window.goCard = (i) => {
   const deck = $("#deck"), card = deck?.children[i];
@@ -85,11 +84,11 @@ function scoreboard() {
   const weekBtns = weeks.length > 1 ? `<div class="wk">${weeks.map((n) => `<button class="${n === S.week ? "on" : ""}" onclick="S.week=${n};scoreboard()">${n}</button>`).join("")}</div>` : "";
   let body;
   if (full) {
-    const list = L.matchups.map((m) => ({ h: m.home_name, a: m.away_name, hw: m.now.hw, aw: m.now.aw, t: m.now.t }));
+    const list = L.matchups.map((m) => ({ h: m.home_owner, a: m.away_owner, hw: m.now.hw, aw: m.now.aw, t: m.now.t }));
     body = `${oddsHeader(L)}${tiles(list)}<div class="grid deck" id="deck">${L.matchups.map((m, i) => oddsCard({ ...m, i })).join("")}</div>`;
   } else {
     const live = (m) => (isLive ? L.matchups.find((x) => x.home === m.home) : null);
-    const list = w.matchups.map((m) => ({ h: d.teams[m.home].name, a: d.teams[m.away].name, hw: m.hw, aw: m.aw, t: m.t }));
+    const list = w.matchups.map((m) => ({ h: d.teams[m.home].owner_name, a: d.teams[m.away].owner_name, hw: m.hw, aw: m.aw, t: m.t }));
     body = `${tiles(list)}<div class="grid deck" id="deck" style="margin-top:12px">${w.matchups.map((m) => scoreCard(m, d, live(m))).join("")}</div>`;
   }
   $("#view").innerHTML = `${toggle}<h1>Week ${S.week} ${full ? "Sweat Board" : "Scoreboard"}</h1>
