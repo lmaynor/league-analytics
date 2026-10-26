@@ -411,3 +411,6 @@ td.trail { padding-top: 4px; padding-bottom: 4px; }
 .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
 .seg::-webkit-scrollbar { display: none; }
 .seg button { flex: 0 0 auto; }
+
+.wksel { margin-left: auto; display: flex; align-items: center; gap: 6px; font: 500 13px var(--font-display); color: var(--muted); }
+.wksel select { max-width: 180px; }

@@ -80,8 +80,10 @@ function scoreboard() {
   const isLive = !!(L?.active && L.mp === S.week);
   const pref = store.get("detail", "auto");
   const full = isLive && detailMode(L) === "full";
-  const toggle = isLive ? `<div class="toolbar"><div class="seg">${[["auto", "Auto"], ["compact", "Compact"], ["full", "Full"]].map(([k, l]) => `<button class="${pref === k ? "on" : ""}" onclick="setDetail('${k}')">${l}</button>`).join("")}</div></div>` : "";
-  const weekBtns = weeks.length > 1 ? `<div class="wk">${weeks.map((n) => `<button class="${n === S.week ? "on" : ""}" onclick="S.week=${n};scoreboard()">${n}</button>`).join("")}</div>` : "";
+  const seg = isLive ? `<div class="seg">${[["auto", "Auto"], ["compact", "Compact"], ["full", "Full"]].map(([k, l]) => `<button class="${pref === k ? "on" : ""}" onclick="setDetail('${k}')">${l}</button>`).join("")}</div>` : "";
+  const weekName = (w) => `Week ${w.mp}${w.matchups[0]?.tier?.startsWith("WINNERS") ? " (Playoffs)" : ""}${w.mp === d.current_mp ? (L?.active && L.mp === w.mp ? " (Live)" : " (Current)") : ""}`;
+  const picker = `<label class="wksel">Week <select onchange="S.week=+this.value;scoreboard()" aria-label="Choose a week">${[...d.weeks].reverse().map((w) => `<option value="${w.mp}"${w.mp === S.week ? " selected" : ""}>${weekName(w)}</option>`).join("")}</select></label>`;
+  const toggle = `<div class="toolbar">${seg}${picker}</div>`;
   let body;
   if (full) {
     const list = L.matchups.map((m) => ({ h: m.home_owner, a: m.away_owner, hw: m.now.hw, aw: m.now.aw, t: m.now.t }));
@@ -92,7 +94,7 @@ function scoreboard() {
     body = `${tiles(list)}<div class="grid deck" id="deck" style="margin-top:12px">${w.matchups.map((m) => scoreCard(m, d, live(m))).join("")}</div>`;
   }
   $("#view").innerHTML = `${toggle}<h1>Week ${S.week} ${full ? "Sweat Board" : "Scoreboard"}</h1>
-    <div class="sub">${isLive ? "Live snapshot as of the last refresh." : S.week === d.current_mp ? "Current week." : "Final."}</div>${weekBtns}${body}`;
+    <div class="sub">${isLive ? "Live snapshot as of the last refresh." : S.week === d.current_mp ? "Current week." : "Final."}</div>${body}`;
   wireDeck();
 }
 TABS.scoreboard = scoreboard;
