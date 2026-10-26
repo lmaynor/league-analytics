@@ -364,3 +364,19 @@ th.rank, td.rank { white-space: nowrap; width: 1%; min-width: 2.4em; text-align:
 #refresh.spin svg { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { #refresh.spin svg { animation: none; } }
+
+/* Race for Last */
+.rbar { position: relative; min-width: 120px; height: 22px; background: var(--color-paper-3); border-radius: 4px; overflow: hidden; }
+.rbar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--color-accent); opacity: .85; }
+.rbar span { position: relative; display: block; padding: 2px 8px; font: 600 12px/18px var(--font-display); color: var(--text); }
+.spark { display: block; margin-left: auto; color: var(--color-accent-deep); }
+td.trail { padding-top: 4px; padding-bottom: 4px; }
+
+.show-sm { display: none; }
+@media (max-width: 700px) {
+  .hide-sm { display: none; }
+  .show-sm { display: inline; }
+  .rbar { min-width: 76px; }
+  .spark { width: 56px; }
+  .tbl-wrap td.l:has(> b) { max-width: 128px; min-width: 100px; }
+}

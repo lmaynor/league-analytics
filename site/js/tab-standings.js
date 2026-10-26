@@ -27,7 +27,7 @@ function power() {
 }
 
 function standingsTab() {
-  $("#view").innerHTML = subnav("standings", [["table", "Standings"], ["power", "Power"], ["categories", "Categories"]]);
-  ({ table: standings, power, categories: cats }[subTab("standings", "table")] || standings)();
+  $("#view").innerHTML = subnav("standings", [["table", "Standings"], ["power", "Power"], ["race", "Race for Last"], ["categories", "Categories"]]);
+  ({ table: standings, power, race, categories: cats }[subTab("standings", "table")] || standings)();
 }
 TABS.standings = standingsTab;

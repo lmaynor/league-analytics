@@ -1,7 +1,7 @@
 /* Boot: load data files, then route to the first tab. Loaded after every tab file. */
 async function init() {
-  const [meta, live, hist, recs, reg, sup] = await Promise.all([j("data/meta.json"), j("data/live.json"), j("data/history.json"), j("data/records.json"), j("data/cheerios.json"), j("data/superlatives.json")]);
-  S.meta = meta; S.live = live; S.history = hist; S.records = recs; S.cheerios = reg; S.supers = sup;
+  const [meta, live, hist, recs, reg, sup, rac] = await Promise.all([j("data/meta.json"), j("data/live.json"), j("data/history.json"), j("data/records.json"), j("data/cheerios.json"), j("data/superlatives.json"), j("data/race.json")]);
+  S.meta = meta; S.live = live; S.history = hist; S.records = recs; S.cheerios = reg; S.supers = sup; S.race = rac;
   $("#league-name").textContent = meta.league_name;
   document.title = meta.league_name + " · Analytics";
   S.season = meta.current;
@@ -54,8 +54,8 @@ async function pageIsStale() {
 async function refreshData() {
   if (await pageIsStale()) { location.reload(); return; }
   const t = Date.now(), fresh = (u) => j(u + "?t=" + t);
-  const [meta, live, hist, recs, che, sup] = await Promise.all([fresh("data/meta.json"), fresh("data/live.json"), fresh("data/history.json"), fresh("data/records.json"), fresh("data/cheerios.json"), fresh("data/superlatives.json")]);
-  Object.assign(S, { meta, live, history: hist, records: recs, cheerios: che, supers: sup, seasons: {} });
+  const [meta, live, hist, recs, che, sup, rac] = await Promise.all([fresh("data/meta.json"), fresh("data/live.json"), fresh("data/history.json"), fresh("data/records.json"), fresh("data/cheerios.json"), fresh("data/superlatives.json"), fresh("data/race.json")]);
+  Object.assign(S, { meta, live, history: hist, records: recs, cheerios: che, supers: sup, race: rac, seasons: {} });
   await loadSeason();
   render();
 }
