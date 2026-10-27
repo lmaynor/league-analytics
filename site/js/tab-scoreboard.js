@@ -117,8 +117,11 @@ function scoreboard() {
   const award = S.lineup?.seasons?.[S.season]?.[String(S.week)];  // completed weeks only
   const awardHtml = award ? `<div class="award"><span class="award-tag">Worst Healthy Starter</span><b>${esc(award.name)}</b>
     <span class="sub">${esc(award.owner)} · ${esc(award.team)} · ${award.starts} starts · ${award.score.toFixed(1)}</span></div>` : "";
+  const drama = S.collapse?.seasons?.[S.season]?.[String(S.week)];
+  const dramaHtml = drama ? `<div class="award"><span class="award-tag">Most Dramatic Loss</span><b>${esc(drama.team)}</b>
+    <span class="sub">${esc(drama.owner)} · had a ${Math.round(drama.peak * 100)}% chance at one point, fell ${Math.round(drama.drop * 100)} points, lost ${drama.final}–${drama.final_opp} to ${esc(drama.opp)}</span></div>` : "";
   $("#view").innerHTML = `${toggle}<h1>Week ${S.week} ${full ? "Sweat Board" : "Scoreboard"}</h1>
-    <div class="sub">${isLive ? "Live snapshot as of the last refresh." : S.week === d.current_mp ? "Current week." : "Final."}</div>${awardHtml}${body}`;
+    <div class="sub">${isLive ? "Live snapshot as of the last refresh." : S.week === d.current_mp ? "Current week." : "Final."}</div>${awardHtml}${dramaHtml}${body}`;
   wireDeck();
 }
 TABS.scoreboard = scoreboard;
