@@ -82,15 +82,18 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live):
     now = simulate(upto_now, live_p)
     # weekly trail: chance of last after the start and after each completed week
     trail = {t: [] for t in tids}
+    expect = {t: [] for t in tids}  # expected finish (1 = best) after each checkpoint
     labels = []
     for w in [0] + completed:
         res = simulate(w, None, TRAIL_SIMS)
         for t in tids:
             trail[t].append(round(float((res["pos"][:, idx[t]] == T - 1).mean()), 4))
+            expect[t].append(round(float(res["pos"][:, idx[t]].mean()) + 1, 2))
         labels.append(w)
     if live_p:
         for t in tids:
             trail[t].append(round(float((now["pos"][:, idx[t]] == T - 1).mean()), 4))
+            expect[t].append(round(float(now["pos"][:, idx[t]].mean()) + 1, 2))
         labels.append("live")
 
     seed_of = {s["id"]: s["seed"] for s in data["standings"]}
@@ -115,7 +118,8 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live):
             "p_last": round(float((ranks == T).mean()), 4),
             "p_bottom3": round(float((ranks > T - 3).mean()), 4),
             "rank_p10": int(np.percentile(ranks, 10)), "rank_med": int(np.median(ranks)), "rank_p90": int(np.percentile(ranks, 90)),
-            "strength": round(float(now["s"][i]), 3), "trail": trail[t],
+            "strength": round(float(now["s"][i]), 3), "trail": trail[t], "expect": expect[t],
+            "finish": [round(float((ranks == r).mean()), 4) for r in range(1, T + 1)],  # chance of each finish, 1st to last
         })
     out.sort(key=lambda x: (-x["p_last"], x["proj_wins"]))
     return {"season": season, "teams": out, "trail_labels": labels, "weeks_done": len(completed),
