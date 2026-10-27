@@ -129,8 +129,9 @@ def build_season(season, data, rows, teams, days, games_done, fallback=None):
         return vec, names
 
     live = []
+    weeks = {}
     for r in rows:
-        if r["live"] and r["hs"].get("0") is not None:
+        if (r["hs"].get("0") is not None or r["hs"].get(0) is not None) and r.get("sp0"):
             sides = {}
             for key, me, opp, mine, theirs in (("home_side", r["home"], r["away"], r["hs"], r["as"]), ("away_side", r["away"], r["home"], r["as"], r["hs"])):
                 vec, names = lost_vec(me, r)
@@ -141,7 +142,10 @@ def build_season(season, data, rows, teams, days, games_done, fallback=None):
                     by[n] += 1
                 sides[key] = {"games": len(names), "missed": [{"name": n, "games": g} for n, g in sorted(by.items(), key=lambda kv: -kv[1])],
                               "actual": [aw, al, at], "healthy": [hw, hl, ht], "cats_lost": max(0, hw - aw), "flips": hres > ares}
-            live.append({"home": r["home"], "away": r["away"], "mp": r["mp"], **sides})
+            entry = {"home": r["home"], "away": r["away"], "mp": r["mp"], **sides}
+            weeks.setdefault(str(r["mp"]), []).append(entry)
+            if r["live"]:
+                live.append(entry)
         if r["tier"].endswith("CONSOLATION_LADDER") or not r["hs"].get("0") or (r.get("sp_est") and not r["regular"]):  # the week in progress counts too, as it stands; estimated playoff weeks can be wrong
             continue
         sides = ((r["home"], r["away"], r["hs"], r["as"]), (r["away"], r["home"], r["as"], r["hs"]))
@@ -186,7 +190,7 @@ def build_season(season, data, rows, teams, days, games_done, fallback=None):
     ouch.sort(key=lambda o: (-o["swing"], -o["games"]))
     return {"teams": out_teams, "ouch": ouch[:12], "players": [{"name": p["name"], "team": p["team"], "games": p["games"],
             "hits": strengths(zs[p["pid"]], base[p["pid"]], p["games"])} for p in players],
-            "complete": data["complete"], "live": live}
+            "complete": data["complete"], "live": live, "weeks": weeks}
 
 
 def build(per_season, raw):

@@ -129,28 +129,58 @@ function weeklyRecap() {
   const d = S.seasons[S.meta.current] || D();
   const L = S.live;
   const weeks = d.weeks.map((w) => w.mp);
-  if (S.week == null || !weeks.includes(S.week)) S.week = d.current_mp && weeks.includes(d.current_mp) ? d.current_mp : weeks[weeks.length - 1];
+  if (S.week == null || !weeks.includes(S.week)) {
+    const completedWeeks = d.weeks.filter((w) => !w.matchups.some((m) => m.live)).map((w) => w.mp);
+    S.week = completedWeeks.length ? completedWeeks[completedWeeks.length - 1] : (d.current_mp || weeks[weeks.length - 1]);
+  }
   const w = d.weeks.find((x) => x.mp === S.week);
   const isLive = !!(L?.active && L.mp === S.week);
   const weekName = (wk) => `Week ${wk.mp}${wk.matchups[0]?.tier?.startsWith("WINNERS") ? " (Playoffs)" : ""}${wk.mp === d.current_mp ? (L?.active && L.mp === wk.mp ? " (Live)" : " (Current)") : ""}`;
   const picker = `<label class="wksel">Week <select onchange="S.week=+this.value;weeklyRecap()" aria-label="Choose a week">${[...d.weeks].reverse().map((wk) => `<option value="${wk.mp}"${wk.mp === S.week ? " selected" : ""}>${weekName(wk)}</option>`).join("")}</select></label>`;
-  const award = S.lineup?.seasons?.[S.season]?.[String(S.week)];
-  const awardHtml = award ? `<div class="award"><span class="award-tag">Worst Healthy Starter</span><b>${esc(award.name)}</b>
-    <span class="sub">${esc(award.owner)} · ${esc(award.team)} · ${award.starts} starts · ${award.score.toFixed(1)}</span></div>` : "";
-  const drama = S.collapse?.seasons?.[S.season]?.[String(S.week)];
-  const dramaHtml = drama ? `<div class="award"><span class="award-tag">Biggest Throw</span><b>${esc(drama.team)}</b>
+
+  const currSeason = String(S.season || S.meta.current);
+  const awardObj = S.lineup?.seasons?.[currSeason]?.[String(S.week)];
+  const worst = awardObj?.worst || awardObj;
+  const mvp = awardObj?.best;
+
+  const mvpHtml = mvp ? `<div class="award"><span class="award-tag" style="color:var(--color-accent-deep)">Weekly MVP</span><b>${esc(mvp.name)}</b>
+    <span class="sub">${esc(mvp.owner)} · ${esc(mvp.team)} · ${mvp.starts} starts · +${mvp.score.toFixed(1)} rating</span></div>` : "";
+  const awardHtml = worst ? `<div class="award"><span class="award-tag">Worst Healthy Starter</span><b>${esc(worst.name)}</b>
+    <span class="sub">${esc(worst.owner)} · ${esc(worst.team)} · ${worst.starts} starts · ${worst.score.toFixed(1)} rating</span></div>` : "";
+
+  const drama = S.collapse?.seasons?.[currSeason]?.[String(S.week)];
+  const dramaHtml = drama ? `<div class="award"><span class="award-tag" style="color:var(--heat-bad)">Biggest Throw</span><b>${esc(drama.team)}</b>
     <span class="sub">${esc(drama.owner)} · had a ${Math.round(drama.peak * 100)}% chance at one point, fell ${Math.round(drama.drop * 100)} points, lost ${drama.final}–${drama.final_opp}${drama.ties ? `–${drama.ties}` : ""} to ${esc(drama.opp)}</span></div>` : "";
+
+  let nailbiterHtml = "", blowoutHtml = "";
+  const finished = w.matchups.filter((m) => m.hw + m.aw + m.t > 0);
+  if (finished.length && !isLive) {
+    const sortedByMargin = [...finished].sort((a, b) => Math.abs(a.hw - a.aw) - Math.abs(b.hw - b.aw));
+    const closest = sortedByMargin[0];
+    const biggest = sortedByMargin[sortedByMargin.length - 1];
+    if (closest && Math.abs(closest.hw - closest.aw) <= 1) {
+      const h = d.teams[closest.home], a = d.teams[closest.away];
+      nailbiterHtml = `<div class="award"><span class="award-tag">Nailbiter of the Week</span><b>${esc(h.name)} vs ${esc(a.name)} (${closest.hw}–${closest.aw}${closest.t ? `–${closest.t}` : ""})</b>
+        <span class="sub">Decided by 1 category margin</span></div>`;
+    }
+    if (biggest && Math.abs(biggest.hw - biggest.aw) >= 3) {
+      const winner = biggest.hw > biggest.aw ? d.teams[biggest.home] : d.teams[biggest.away];
+      const loser = biggest.hw > biggest.aw ? d.teams[biggest.away] : d.teams[biggest.home];
+      blowoutHtml = `<div class="award"><span class="award-tag">Blowout of the Week</span><b>${esc(winner.name)} over ${esc(loser.name)} (${Math.max(biggest.hw, biggest.aw)}–${Math.min(biggest.hw, biggest.aw)})</b>
+        <span class="sub">+${Math.abs(biggest.hw - biggest.aw)} category victory</span></div>`;
+    }
+  }
 
   const debriefs = w.matchups.map((m) => {
     const h = d.teams[m.home], a = d.teams[m.away];
-    const sw = swapsBlock(m, h, a);
-    const ch = cheeriosBlock(m, h, a);
+    const sw = swapsBlock(m, h, a, S.week);
+    const ch = cheeriosBlock(m, h, a, S.week);
     return `<div class="card" style="margin-top:12px">
       <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:8px;border-bottom:1px solid var(--color-rule)">
         <div><b>${esc(h.name)}</b> <span class="sub" style="display:inline">(${esc(h.owner_name)})</span> vs <b>${esc(a.name)}</b> <span class="sub" style="display:inline">(${esc(a.owner_name)})</span></div>
         <div style="font-weight:600;font-family:var(--font-display);font-size:16px">${m.hw}–${m.aw}${m.t ? `–${m.t}` : ""}</div>
       </div>
-      ${sw || '<div class="sub" style="margin-top:8px">No bench regrets.</div>'}
+      ${sw || '<div class="sub" style="margin-top:8px">No bench regrets this week.</div>'}
       ${ch}
     </div>`;
   }).join("");
@@ -158,10 +188,12 @@ function weeklyRecap() {
   panel().innerHTML = `<div class="toolbar">${picker}</div>
     <h1>Week ${S.week} Recap</h1>
     <div class="sub">${isLive ? "In-progress week. Awards finalize when all games finish." : "Completed matchup analysis, awards, and what-ifs."}</div>
-    ${awardHtml}${dramaHtml}
-    <h2>Trades Debrief</h2>
+    <div class="awards-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:8px;margin-top:12px">
+      ${mvpHtml}${awardHtml}${dramaHtml}${nailbiterHtml}${blowoutHtml}
+    </div>
+    <h2 style="margin-top:24px">Trades Debrief</h2>
     ${tradesDebrief(S.week)}
-    <h2>Matchup Debriefs</h2>
+    <h2 style="margin-top:24px">Matchup Debriefs</h2>
     ${debriefs}`;
 }
 
@@ -202,27 +234,32 @@ TABS.matchups = matchupsTab;
 TABS.scoreboard = () => go("matchups");
 
 /* Bench Regret: swaps that would be flipping the matchup if a benched player had started instead */
-function swapsBlock(m, h, a) {
-  const sw = S.swaps?.matchups?.find((x) => x.home === m.home);
+function swapsBlock(m, h, a, wk) {
+  const currentWeek = wk || S.week;
+  const weekList = S.swaps?.weeks?.[String(currentWeek)] || S.swaps?.matchups || [];
+  const sw = weekList.find((x) => x.home === m.home);
   if (!sw) return "";
   const rec = (r) => `${r[0]}-${r[1]}${r[2] ? `-${r[2]}` : ""}`;
-  const line = (list, t) => list.map((x) => `<div class="rl"><b>${esc(t.name)}</b>: start <b>${esc(x.in)}</b> over ${esc(x.out)} this week and it's ${rec(x.to)} instead of ${rec(x.from)}.</div>`).join("");
+  const line = (list, t) => (list || []).map((x) => `<div class="rl"><b>${esc(t.name)}</b>: start <b>${esc(x.in)}</b> over ${esc(x.out)} this week and it's ${rec(x.to)} instead of ${rec(x.from)}.</div>`).join("");
   const body = line(sw.home_swaps, h) + line(sw.away_swaps, a);
   return body ? `<div class="cheerios swaps"><h4>Bench Regret</h4>${body}</div>` : "";
 }
 
-/* Red Cheerios for the week so far: who missed starts and what a healthy lineup would have meant */
-function cheeriosBlock(m, h, a) {
-  const live = S.cheerios?.seasons?.[S.meta.current]?.live?.find((x) => x.home === m.home);
-  if (!live) return "";
+/* Red Cheerios: who missed starts and what a healthy lineup would have meant */
+function cheeriosBlock(m, h, a, wk) {
+  const currSeason = String(S.season || S.meta.current);
+  const currentWeek = wk || S.week;
+  const weekMatches = S.cheerios?.seasons?.[currSeason]?.weeks?.[String(currentWeek)] || S.cheerios?.seasons?.[currSeason]?.live || [];
+  const entry = weekMatches.find((x) => x.home === m.home);
+  if (!entry) return "";
   const rec = (r) => `${r[0]}-${r[1]}${r[2] ? `-${r[2]}` : ""}`;
   const line = (side, t) => {
-    if (!side.games) return "";
+    if (!side || !side.games) return "";
     const names = side.missed.map((p) => `${esc(p.name)}${p.games > 1 ? ` (${p.games})` : ""}`).join(", ");
     const gain = side.cats_lost ? `, +${side.cats_lost} categor${side.cats_lost === 1 ? "y" : "ies"}` : "";
     return `<div class="rl"><b>${esc(t.name)}</b> missed ${side.games} starter game${side.games === 1 ? "" : "s"}: ${names}.
       Healthy: <b>${rec(side.healthy)}</b>${gain}${side.flips ? ' <span class="flip">Would have flipped the matchup</span>' : ""}</div>`;
   };
-  const body = line(live.home_side, h) + line(live.away_side, a);
-  return `<div class="cheerios"><h4>Red Cheerios, So Far This Week</h4>${body || '<div class="sub">Every starter who was supposed to play has played.</div>'}</div>`;
+  const body = line(entry.home_side, h) + line(entry.away_side, a);
+  return `<div class="cheerios"><h4>Red Cheerios, Absences</h4>${body || '<div class="sub">Every starter who was supposed to play has played.</div>'}</div>`;
 }
