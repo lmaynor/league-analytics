@@ -23,6 +23,23 @@ window.setSort = (v) => { S.sort = v; scoreboard(); };
 window.jump = (i) => goCard(i);
 window.toggle = (key) => { S.open.has(key) ? S.open.delete(key) : S.open.add(key); scoreboard(); };
 
+/* Rolling win chance for this matchup, day by day (only shown once its odds are public) */
+function rollChart(m) {
+  const daily = S.race?.seasons?.[S.meta.current]?.matchup_daily?.[m.home] || [];
+  const pts = [...daily, m.p_home_win].filter((v) => v != null);
+  if (pts.length < 2 || m.hidden) return "";
+  const W = 300, H = 72, P = 8;
+  const x = (i) => P + (i / (pts.length - 1)) * (W - 2 * P);
+  const y = (p) => P + (1 - p) * (H - 2 * P);
+  const path = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p).toFixed(1)}`).join(" ");
+  const last = pts[pts.length - 1];
+  return `<div class="roll"><div class="roll-head"><span>${esc(m.home_name)} win chance, day by day</span><b>${pct(last)}</b></div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img" aria-label="${esc(m.home_name)} win chance by day">
+      <line x1="${P}" x2="${W - P}" y1="${y(0.5)}" y2="${y(0.5)}" class="roll-mid"/>
+      <path d="${path}" fill="none" stroke="var(--color-accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${x(pts.length - 1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="3.5" fill="var(--color-accent)"/></svg></div>`;
+}
+
 function oddsCard(m) {
   const cats = [...m.cats];
   if (S.sort === "sweat") cats.sort((a, b) => (b.sweat - a.sweat) || (Math.abs(a.p_home - 0.5) - Math.abs(b.p_home - 0.5)));
@@ -38,6 +55,7 @@ function oddsCard(m) {
       <div class="wp"><div class="h" style="width:${ph * 100}%">${ph >= .12 ? pct(ph) : ""}</div>${pt >= .03 ? `<div class="t" style="width:${pt * 100}%">${pt >= .08 ? "tie" : ""}</div>` : ""}<div class="a" style="width:${pa * 100}%">${pa >= .12 ? pct(pa) : ""}</div></div>
       <div class="sub" style="margin-top:4px">Projected finish ${m.exp_home_cats.toFixed(1)} – ${m.exp_away_cats.toFixed(1)} categories</div>
     </div>
+    ${rollChart(m)}
     <div class="cats">${cats.map((c) => catRow(m, c, maxSweat)).join("")}</div>
     <div class="tonight">${side(m.home_side, m.home_name, "h")}${side(m.away_side, m.away_name, "a")}</div>
     ${cheeriosBlock({ home: m.home }, { name: m.home_name }, { name: m.away_name })}

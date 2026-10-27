@@ -103,6 +103,7 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live, days=N
             trail[t].append(round(float((res["pos"][:, idx[t]] == T - 1).mean()), 4))
             expect[t].append(places(res["pos"])[idx[t]])
         labels.append(w)
+    daily_by_home = {}  # per live matchup: win chance on each day of the week (the Scoreboard's rolling chart)
     if live_mp is not None:  # live week exists; its odds may be empty while hidden, the strength model then stands in
         # one point per scoring day of the live week, then the live odds on the last day (matches the Scoreboard)
         live_rows = [r for r in rows if r["regular"] and r["live"]]
@@ -122,6 +123,7 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live, days=N
                         for k in STATS: tot[k] += row[5][str(k)]
             return {k: tot[k] for k in STATS}
         if days and live_rows:
+            daily_by_home = {r["home"]: [] for r in live_rows}
             sp0 = min(r["sp0"] for r in live_rows)
             last_day = min(max(days), max(r["sp1"] for r in live_rows))
             for d in range(sp0, last_day):
@@ -133,6 +135,8 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live, days=N
                     lead = (sum(1 for v in res_cats if v == 1) - sum(1 for v in res_cats if v == -1) + len(cids)) / (2 * len(cids))
                     strength_p = 1 / (1 + np.exp(-K * (strength[h] - strength[a])))
                     probs[(r["mp"], h)] = 0.5 * strength_p + 0.5 * lead  # a simple blend: this week's category lead and the strength model
+                for r in live_rows:
+                    daily_by_home[r["home"]].append(round(probs[(r["mp"], r["home"])], 4))
                 day_now = simulate(live_mp - 1, probs, TRAIL_SIMS)
                 for t in tids:
                     trail[t].append(round(float((day_now["pos"][:, idx[t]] == T - 1).mean()), 4))
@@ -169,7 +173,8 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live, days=N
             "finish": [round(float((ranks == r).mean()), 4) for r in range(1, T + 1)],  # chance of each finish, 1st to last
         })
     out.sort(key=lambda x: (-x["p_last"], x["proj_wins"]))
-    return {"season": season, "teams": out, "trail_labels": labels, "weeks_done": len(completed),
+
+    return {"matchup_daily": {str(k): v for k, v in daily_by_home.items()}, "season": season, "teams": out, "trail_labels": labels, "weeks_done": len(completed),
             "weeks_total": len({mp for mp, _, _ in sched}), "live": bool(live_p), "complete": data["complete"]}
 
 
