@@ -114,14 +114,8 @@ function scoreboard() {
     const list = w.matchups.map((m) => ({ h: d.teams[m.home].owner_name, a: d.teams[m.away].owner_name, hw: m.hw, aw: m.aw, t: m.t }));
     body = `${tiles(list)}<div class="grid deck" id="deck" style="margin-top:12px">${w.matchups.map((m) => scoreCard(m, d, live(m))).join("")}</div>`;
   }
-  const award = S.lineup?.seasons?.[S.season]?.[String(S.week)];  // completed weeks only
-  const awardHtml = award ? `<div class="award"><span class="award-tag">Worst Healthy Starter</span><b>${esc(award.name)}</b>
-    <span class="sub">${esc(award.owner)} · ${esc(award.team)} · ${award.starts} starts · ${award.score.toFixed(1)}</span></div>` : "";
-  const drama = S.collapse?.seasons?.[S.season]?.[String(S.week)];
-  const dramaHtml = drama ? `<div class="award"><span class="award-tag">Biggest Throw</span><b>${esc(drama.team)}</b>
-    <span class="sub">${esc(drama.owner)} · had a ${Math.round(drama.peak * 100)}% chance at one point, fell ${Math.round(drama.drop * 100)} points, lost ${drama.final}–${drama.final_opp}${drama.ties ? `–${drama.ties}` : ""} to ${esc(drama.opp)}</span></div>` : "";
   panel().innerHTML = `${toggle}<h1>Week ${S.week} ${full ? "Sweat Board" : "Scoreboard"}</h1>
-    <div class="sub">${isLive ? "Live snapshot as of the last refresh." : S.week === d.current_mp ? "Current week." : "Final."}</div>${awardHtml}${dramaHtml}${body}`;
+    <div class="sub">${isLive ? "Live snapshot as of the last refresh." : S.week === d.current_mp ? "Current week." : "Final."}</div>${body}`;
   wireDeck();
 }
 

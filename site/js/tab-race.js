@@ -62,17 +62,6 @@ const MARKETS = {
     format: pctTxt,
     isOrdinal: false,
   },
-  bottom3: {
-    key: "bottom3",
-    label: "Bottom 3",
-    title: "Bottom 3 Danger Zone",
-    desc: "Probability of finishing in positions 8, 9, or 10.",
-    series: (t) => t.trail_bottom3 || (t.finish ? [t.finish.slice(7).reduce((a, b) => a + b, 0)] : [t.p_bottom3 || 0]),
-    current: (t) => t.p_bottom3 ?? 0,
-    sort: (a, b) => (b.p_bottom3 ?? 0) - (a.p_bottom3 ?? 0) || a.proj_wins - b.proj_wins,
-    format: pctTxt,
-    isOrdinal: false,
-  },
   finish: {
     key: "finish",
     label: "Final Position",
@@ -232,7 +221,6 @@ function updateRaceTable(d) {
         <th class="${mode === "title" ? "mk-col-active" : ""}">Title Odds</th>
         <th class="${mode === "playoffs" ? "mk-col-active" : ""}">Playoffs</th>
         <th class="${mode === "last" ? "mk-col-active" : ""}">Last Place</th>
-        <th class="hide-sm ${mode === "bottom3" ? "mk-col-active" : ""}">Bottom 3</th>
         <th class="hide-sm ${mode === "finish" ? "mk-col-active" : ""}">Likely Finish</th>
         <th>Trail</th>
       </tr>
@@ -250,7 +238,6 @@ function updateRaceTable(d) {
           <td data-v="${t.p_title ?? 0}" class="${mode === "title" ? "mk-col-active" : ""}">${cellBar(t.p_title ?? 0, mode === "title")}</td>
           <td data-v="${t.p_playoffs ?? 0}" class="${mode === "playoffs" ? "mk-col-active" : ""}">${cellBar(t.p_playoffs ?? 0, mode === "playoffs")}</td>
           <td data-v="${t.p_last ?? 0}" class="${mode === "last" ? "mk-col-active" : ""}">${cellBar(t.p_last ?? 0, mode === "last")}</td>
-          <td class="hide-sm ${mode === "bottom3" ? "mk-col-active" : ""}" data-v="${t.p_bottom3 ?? 0}">${cellBar(t.p_bottom3 ?? 0, mode === "bottom3")}</td>
           <td class="hide-sm ${mode === "finish" ? "mk-col-active" : ""}" data-v="${t.rank_med}">${finish(t)}</td>
           <td class="trail" data-v="${s[s.length - 1] ?? 0}">${spark(s, mkt.isOrdinal)}</td>
         </tr>`;

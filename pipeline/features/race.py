@@ -8,6 +8,7 @@ the live odds instead. Every remaining scheduled matchup is simulated, standings
 the share of simulations a team finishes last is its chance of last place.
 """
 import json
+from pathlib import Path
 
 import numpy as np
 
@@ -47,8 +48,12 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live, days=N
     live_p = None
     if live and live.get("active") and season == CURRENT and live_mp:
         live_p = {(live_mp, m["home"]): m["p_home_win"] + m["p_tie"] / 2 for m in live["matchups"] if not m.get("hidden")}  # hidden matchups fall back to the strength model
-    # a week with no games left to simulate is played, even if ESPN has not finalized it yet
-    done = [r for r in rows if r["regular"] and (not r["live"] or live_p is None)]
+    live_rows = [r for r in rows if r["regular"] and r["live"]]
+    live_done = bool(live_rows and (
+        (live and live.get("active") and live.get("games_left") == 0) or
+        (league.get("status", {}).get("latestScoringPeriod", 0) > max(r["sp1"] for r in live_rows))
+    ))
+    done = [r for r in rows if r["regular"] and (not r["live"] or live_done)]
     completed = sorted({r["mp"] for r in done})
     prior = {t: 0.5 * 0.5 + 0.5 * prior_by_owner.get(teams[t]["owner"], 0.5) for t in tids}
     rng = np.random.default_rng(11)
@@ -156,11 +161,6 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live, days=N
         labels.append(f"d{max(days)}" if days else "live")
 
     seed_of = {s["id"]: s["seed"] for s in data["standings"]}
-    standing = {t: [0, 0, 0] for t in tids}  # the live week as it stands right now
-    for r in rows:
-        if r["regular"] and r["live"] and live_p:
-            for me, mine, theirs in ((r["home"], r["hw"], r["aw"]), (r["away"], r["aw"], r["hw"])):
-                standing[me][0 if mine > theirs else 1 if mine < theirs else 2] += 1
     out = []
     for t in tids:
         i = idx[t]
@@ -168,10 +168,11 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live, days=N
         if data["complete"]:  # a finished season has a real order; no simulation needed
             ranks = np.full(1, seed_of[t])
         gp = int(now["gp"][i])
-        w, ti = now["wins"][i], int(now["ties"][i])
+        w, ti = int(round(now["wins"][i] - 0.5 * now["ties"][i])), int(round(now["ties"][i]))
+        l = gp - w - ti
         out.append({
             "id": t, "name": teams[t]["name"], "owner": teams[t]["owner_name"],
-            "record": [int(w - 0.5 * ti) + standing[t][0], int(gp - w - 0.5 * ti) + standing[t][1], ti + standing[t][2]],
+            "record": [w, l, ti],
             "games_left": int(now["left"][i]) if now["left"][i] else 0,
             "proj_wins": round(float(now["sim_wins"][:, i].mean()), 1),
             "p_title": round(float((ranks == 1).mean()), 4),
@@ -195,6 +196,13 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live, days=N
 
 
 def build(per_season, raw, live):
+    if not live:
+        cached = Path(__file__).resolve().parent.parent.parent / "site" / "data" / "live.json"
+        if cached.exists():
+            try:
+                live = json.loads(cached.read_text(encoding="utf-8"))
+            except Exception:
+                live = {}
     seasons = {}
     for season in sorted(per_season):
         path = raw / str(season) / "league.json"
