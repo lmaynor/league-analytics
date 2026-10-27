@@ -1,12 +1,14 @@
 /* History: all-time owners, records, head to head */
-function history() {
+function historyTab() {
   const H = S.history, owners = H.owners;
-  S.hview = S.hview || "owners";
-  const seg = `<div class="toolbar"><div class="seg">${[["owners", "Owners"], ["records", "Records"], ["supers", "Superlatives"], ["h2h", "Head to Head"]].map(([k, l]) => `<button class="${S.hview === k ? "on" : ""}" onclick="S.hview='${k}';history()">${l}</button>`).join("")}</div></div>`;
-  const body = { owners: histOwners, records: histRecords, supers: histSupers, h2h: histH2H }[S.hview](H, owners);
-  $("#view").innerHTML = `<h1>All-Time</h1><div class="sub">${owners.length} owners across ${H.owners.flatMap((o) => o.seasons).map((s) => s.season).filter((v, i, a) => a.indexOf(v) === i).length} seasons</div>${seg}${body}`;
+  $("#view").innerHTML = subnav("history", [["owners", "Owners"], ["h2h", "Head to Head"], ["records", "Records"], ["supers", "Superlatives"]]);
+  const view = subTab("history", "owners");
+  const bodyFn = { owners: histOwners, records: histRecords, supers: histSupers, h2h: histH2H }[view] || histOwners;
+  const body = bodyFn(H, owners);
+  panel().innerHTML = `<h1>All-Time</h1><div class="sub">${owners.length} owners across ${H.owners.flatMap((o) => o.seasons).map((s) => s.season).filter((v, i, a) => a.indexOf(v) === i).length} seasons</div>${body}`;
   markSortable($("#view"), ["Finish by Season"]);
 }
+const history = historyTab;
 
 function histOwners(H, owners) {
   const seasons = [...new Set(owners.flatMap((o) => o.seasons.map((s) => s.season)))].sort();

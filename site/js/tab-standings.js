@@ -26,8 +26,9 @@ function power() {
     </table></div>`;
 }
 
-function standingsTab() {
-  $("#view").innerHTML = subnav("standings", [["table", "Standings"], ["power", "Power"], ["race", "Race for Last"], ["categories", "Categories"]]);
-  ({ table: standings, power, race, categories: cats }[subTab("standings", "table")] || standings)();
+function seasonTab() {
+  $("#view").innerHTML = subnav("season", [["standings", "Standings"], ["power", "Power"], ["projections", "Projections"]]);
+  ({ standings, table: standings, power, projections: race, race }[subTab("season", "standings")] || standings)();
 }
-TABS.standings = standingsTab;
+TABS.season = seasonTab;
+TABS.standings = () => go("season");

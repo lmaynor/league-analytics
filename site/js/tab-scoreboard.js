@@ -120,11 +120,55 @@ function scoreboard() {
   const drama = S.collapse?.seasons?.[S.season]?.[String(S.week)];
   const dramaHtml = drama ? `<div class="award"><span class="award-tag">Biggest Throw</span><b>${esc(drama.team)}</b>
     <span class="sub">${esc(drama.owner)} · had a ${Math.round(drama.peak * 100)}% chance at one point, fell ${Math.round(drama.drop * 100)} points, lost ${drama.final}–${drama.final_opp}${drama.ties ? `–${drama.ties}` : ""} to ${esc(drama.opp)}</span></div>` : "";
-  $("#view").innerHTML = `${toggle}<h1>Week ${S.week} ${full ? "Sweat Board" : "Scoreboard"}</h1>
+  panel().innerHTML = `${toggle}<h1>Week ${S.week} ${full ? "Sweat Board" : "Scoreboard"}</h1>
     <div class="sub">${isLive ? "Live snapshot as of the last refresh." : S.week === d.current_mp ? "Current week." : "Final."}</div>${awardHtml}${dramaHtml}${body}`;
   wireDeck();
 }
-TABS.scoreboard = scoreboard;
+
+function weeklyRecap() {
+  const d = S.seasons[S.meta.current] || D();
+  const L = S.live;
+  const weeks = d.weeks.map((w) => w.mp);
+  if (S.week == null || !weeks.includes(S.week)) S.week = d.current_mp && weeks.includes(d.current_mp) ? d.current_mp : weeks[weeks.length - 1];
+  const w = d.weeks.find((x) => x.mp === S.week);
+  const isLive = !!(L?.active && L.mp === S.week);
+  const weekName = (wk) => `Week ${wk.mp}${wk.matchups[0]?.tier?.startsWith("WINNERS") ? " (Playoffs)" : ""}${wk.mp === d.current_mp ? (L?.active && L.mp === wk.mp ? " (Live)" : " (Current)") : ""}`;
+  const picker = `<label class="wksel">Week <select onchange="S.week=+this.value;weeklyRecap()" aria-label="Choose a week">${[...d.weeks].reverse().map((wk) => `<option value="${wk.mp}"${wk.mp === S.week ? " selected" : ""}>${weekName(wk)}</option>`).join("")}</select></label>`;
+  const award = S.lineup?.seasons?.[S.season]?.[String(S.week)];
+  const awardHtml = award ? `<div class="award"><span class="award-tag">Worst Healthy Starter</span><b>${esc(award.name)}</b>
+    <span class="sub">${esc(award.owner)} · ${esc(award.team)} · ${award.starts} starts · ${award.score.toFixed(1)}</span></div>` : "";
+  const drama = S.collapse?.seasons?.[S.season]?.[String(S.week)];
+  const dramaHtml = drama ? `<div class="award"><span class="award-tag">Biggest Throw</span><b>${esc(drama.team)}</b>
+    <span class="sub">${esc(drama.owner)} · had a ${Math.round(drama.peak * 100)}% chance at one point, fell ${Math.round(drama.drop * 100)} points, lost ${drama.final}–${drama.final_opp}${drama.ties ? `–${drama.ties}` : ""} to ${esc(drama.opp)}</span></div>` : "";
+
+  const debriefs = w.matchups.map((m) => {
+    const h = d.teams[m.home], a = d.teams[m.away];
+    const sw = swapsBlock(m, h, a);
+    const ch = cheeriosBlock(m, h, a);
+    return `<div class="card" style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:8px;border-bottom:1px solid var(--color-rule)">
+        <div><b>${esc(h.name)}</b> <span class="sub" style="display:inline">(${esc(h.owner_name)})</span> vs <b>${esc(a.name)}</b> <span class="sub" style="display:inline">(${esc(a.owner_name)})</span></div>
+        <div style="font-weight:600;font-family:var(--font-display);font-size:16px">${m.hw}–${m.aw}${m.t ? `–${m.t}` : ""}</div>
+      </div>
+      ${sw || '<div class="sub" style="margin-top:8px">No bench regrets.</div>'}
+      ${ch}
+    </div>`;
+  }).join("");
+
+  panel().innerHTML = `<div class="toolbar">${picker}</div>
+    <h1>Week ${S.week} Recap</h1>
+    <div class="sub">${isLive ? "In-progress week. Awards finalize when all games finish." : "Completed matchup analysis, awards, and what-ifs."}</div>
+    ${awardHtml}${dramaHtml}
+    <h2>Matchup Debriefs</h2>
+    ${debriefs}`;
+}
+
+function matchupsTab() {
+  $("#view").innerHTML = subnav("matchups", [["scoreboard", "Scoreboard"], ["recap", "Weekly Recap"]]);
+  ({ scoreboard, recap: weeklyRecap }[subTab("matchups", "scoreboard")] || scoreboard)();
+}
+TABS.matchups = matchupsTab;
+TABS.scoreboard = () => go("matchups");
 
 /* Bench Regret: swaps that would be flipping the matchup if a benched player had started instead */
 function swapsBlock(m, h, a) {

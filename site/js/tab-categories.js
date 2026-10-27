@@ -16,3 +16,10 @@ function cats() {
       }).join("")}</tr>`).join("")}
     </table></div>`;
 }
+
+function teamsTab() {
+  $("#view").innerHTML = subnav("teams", [["categories", "Categories"], ["cheerios", "Red Cheerios"], ["trades", "Trade Analyzer"]]);
+  ({ categories: cats, cheerios, trades }[subTab("teams", "categories")] || cats)();
+}
+TABS.teams = teamsTab;
+TABS.categories = () => { S.sub.teams = "categories"; go("teams"); };

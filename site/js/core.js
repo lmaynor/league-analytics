@@ -6,7 +6,7 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch {} },
 };
 
-const S = { meta: null, live: null, history: null, seasons: {}, tab: "scoreboard", sub: {}, season: null, sort: "sweat", week: null, open: new Set() };
+const S = { meta: null, live: null, history: null, seasons: {}, tab: "matchups", sub: {}, season: null, sort: "sweat", week: null, open: new Set() };
 const PCT = new Set([19, 20]);
 const fmt = (v, id) => (v == null ? "–" : PCT.has(id) ? v.toFixed(3).replace(/^0/, "") : Math.round(v).toString());
 const pct = (p) => `${Math.round(p * 100)}%`;
@@ -40,9 +40,9 @@ function haptic() {
   }
   hx.click();
 }
-const NO_SEASON = ["scoreboard", "history", "cheerios"];
+const NO_SEASON = ["matchups", "history"];
 
-/* a tab can have several views (Scoreboard: Scores | Sweat). Each view renders into #panel. */
+/* a tab can have several views (Matchups: Scoreboard | Recap). Each view renders into #panel. */
 const panel = () => $("#panel") || $("#view");
 const subTab = (tab, fallback) => S.sub[tab] || store.get("sub-" + tab, fallback);
 function subnav(tab, items) {
@@ -57,13 +57,15 @@ async function loadSeason() {
 const D = () => S.seasons[S.season];
 
 function go(tab) {
-  S.tab = tab; location.hash = tab;
+  S.tab = tab;
+  const sub = S.sub[tab] || store.get("sub-" + tab);
+  location.hash = sub ? tab + "/" + sub : tab;
   document.querySelectorAll("#tabs button, #tabbar button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
   window.scrollTo(0, 0);
   $("#season").parentElement.style.display = NO_SEASON.includes(tab) ? "none" : "";
   render();
 }
-function render() { (TABS[S.tab] || TABS.scoreboard)(); markSortable($("#view"), ["Finish by Season", "#"]); }
+function render() { (TABS[S.tab] || TABS.matchups || TABS.scoreboard)(); markSortable($("#view"), ["Finish by Season", "#"]); }
 
 
 /* click a header on any table.sortable to sort by that column */

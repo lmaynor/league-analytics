@@ -85,7 +85,7 @@ function drawMarket(d) {
   box.querySelectorAll(".mk-row").forEach((b) => (b.onclick = () => { S.raceFocus = S.raceFocus === +b.dataset.id ? null : +b.dataset.id; drawMarket(d); }));
 }
 let marketResize;
-addEventListener("resize", () => { clearTimeout(marketResize); marketResize = setTimeout(() => { const d = S.race?.seasons?.[S.season]; if (S.tab === "standings" && $("#market") && d) drawMarket(d); }, 150); });
+addEventListener("resize", () => { clearTimeout(marketResize); marketResize = setTimeout(() => { const d = S.race?.seasons?.[S.season]; if ((S.tab === "season" || S.tab === "standings") && $("#market") && d) drawMarket(d); }, 150); });
 
 function race() {
   const d = S.race?.seasons?.[S.season];
