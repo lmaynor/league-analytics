@@ -82,18 +82,18 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live):
     now = simulate(upto_now, live_p)
     # weekly trail: chance of last after the start and after each completed week
     trail = {t: [] for t in tids}
-    expect = {t: [] for t in tids}  # expected finish (1 = best) after each checkpoint
+    expect = {t: [] for t in tids}  # most likely finish (1 = best) after each checkpoint, a whole place
     labels = []
     for w in [0] + completed:
         res = simulate(w, None, TRAIL_SIMS)
         for t in tids:
             trail[t].append(round(float((res["pos"][:, idx[t]] == T - 1).mean()), 4))
-            expect[t].append(round(float(res["pos"][:, idx[t]].mean()) + 1, 2))
+            expect[t].append(int(np.bincount(res["pos"][:, idx[t]], minlength=T).argmax()) + 1)
         labels.append(w)
     if live_p:
         for t in tids:
             trail[t].append(round(float((now["pos"][:, idx[t]] == T - 1).mean()), 4))
-            expect[t].append(round(float(now["pos"][:, idx[t]].mean()) + 1, 2))
+            expect[t].append(int(np.bincount(now["pos"][:, idx[t]], minlength=T).argmax()) + 1)
         labels.append("live")
 
     seed_of = {s["id"]: s["seed"] for s in data["standings"]}

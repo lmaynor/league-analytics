@@ -21,15 +21,15 @@ function drawMarket(d) {
   const color = (t) => `var(--m${ids.indexOf(t.id) % 10})`;
   const n = d.trail_labels.length, focus = S.raceFocus, T = d.teams.length;
   const mode = S.raceMode || "last";
-  const series = (t) => (mode === "last" ? t.trail : t.expect);  // odds of last, or expected finish (1 = best)
+  const series = (t) => (mode === "last" ? t.trail : t.expect);  // odds of last, or most likely finish (1 = best)
   const top = Math.max(0.1, ...d.teams.flatMap(series));
   const step = top > 0.6 ? 0.25 : top > 0.3 ? 0.1 : 0.05;
   const max = Math.min(1, Math.ceil(top / step) * step);
-  const val = (t, i) => (mode === "last" ? `${Math.round(t.trail[i] * 100)}%` : t.expect[i].toFixed(1));
+  const val = (t, i) => (mode === "last" ? `${Math.round(t.trail[i] * 100)}%` : ordinal(t.expect[i]));
   const legend = d.teams.map((t) => {
     const cur = series(t)[n - 1], prev = n > 1 ? series(t)[n - 2] : cur;
-    const dl = mode === "last" ? Math.round((cur - prev) * 100) : Math.round((prev - cur) * 10) / 10;  // finish: positive = moved up
-    const txt = mode === "last" ? (cur >= 0.995 ? "100%" : cur < 0.005 ? "0%" : `${Math.round(cur * 100)}%`) : cur.toFixed(1);
+    const dl = mode === "last" ? Math.round((cur - prev) * 100) : prev - cur;  // finish: positive = moved up a place
+    const txt = mode === "last" ? (cur >= 0.995 ? "100%" : cur < 0.005 ? "0%" : `${Math.round(cur * 100)}%`) : ordinal(cur);
     return `<button class="mk-row${focus === t.id ? " on" : ""}${focus != null && focus !== t.id ? " dim" : ""}" data-id="${t.id}" aria-pressed="${focus === t.id}">
       <i style="background:${color(t)}"></i><span class="mk-name" title="${esc(t.name)}">${esc(t.owner)}</span>
       <b>${txt}</b><em>${dl === 0 ? "" : dl > 0 ? `+${dl}` : `−${Math.abs(dl)}`}</em></button>`;
@@ -39,7 +39,7 @@ function drawMarket(d) {
   box.querySelectorAll(".mk-mode button").forEach((b) => (b.onclick = () => {
     S.raceMode = b.dataset.mode;
     const h = document.querySelector(".mk-title");
-    if (h) h.textContent = S.raceMode === "finish" ? "Expected Final Position" : "Odds of Finishing Last";
+    if (h) h.textContent = S.raceMode === "finish" ? "Most Likely Final Position" : "Odds of Finishing Last";
     drawMarket(d);
   }));
   const plot = box.querySelector(".mk-plot"), svg = box.querySelector("#mk-svg");
@@ -93,8 +93,8 @@ function race() {
   const rec = (r) => `${r[0]}-${r[1]}${r[2] ? `-${r[2]}` : ""}`;
   const finish = (t) => (t.rank_p10 === t.rank_p90 ? ordinal(t.rank_med) : `${ordinal(t.rank_p10)} to ${ordinal(t.rank_p90)}`);
   panel().innerHTML = `<h1>${d.season} Race for Last</h1>
-    <h2 class="mk-title">${S.raceMode === "finish" ? "Expected Final Position" : "Odds of Finishing Last"}</h2>
-    <div class="sub">${d.complete ? "Final standings. Lines show how each team's odds moved week by week." : `The rest of the regular season, simulated 10,000 times from each team's category strength and the real schedule. ${d.live ? "This week's matchups use the live odds. " : ""}Final Position shows each team's expected finish, 1st at the top.`}</div>
+    <h2 class="mk-title">${S.raceMode === "finish" ? "Most Likely Final Position" : "Odds of Finishing Last"}</h2>
+    <div class="sub">${d.complete ? "Final standings. Lines show how each team's odds moved week by week." : `The rest of the regular season, simulated 10,000 times from each team's category strength and the real schedule. ${d.live ? "This week's matchups use the live odds. " : ""}Final Position shows each team's most likely finish, 1st at the top.`}</div>
     <div class="card market" id="market" style="margin-top:12px"></div>
     <div class="card tbl-wrap" style="margin-top:12px"><table class="sortable">
       <tr><th class="l">Team</th><th class="hide-sm">Record</th><th class="hide-sm">Left</th><th class="hide-sm">Proj. Wins</th><th class="l">Chance of Last</th><th class="hide-sm">Bottom 3</th><th class="hide-sm">Likely Finish</th><th>Trail</th></tr>
