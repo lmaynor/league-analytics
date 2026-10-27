@@ -93,15 +93,27 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live, days=N
 
     upto_now = max(completed) if completed else 0
     now = simulate(upto_now, live_p)
-    # weekly trail: chance of last after the start and after each completed week
-    trail = {t: [] for t in tids}
+    # weekly trail: chances across prediction market models after the start and after each checkpoint
+    trail = {t: [] for t in tids}  # odds of last (backward compat)
+    trail_title = {t: [] for t in tids}  # title / 1st place odds
+    trail_playoffs = {t: [] for t in tids}  # top 4 playoff odds
+    trail_bottom3 = {t: [] for t in tids}  # bottom 3 danger odds
     expect = {t: [] for t in tids}  # projected place after each checkpoint: a whole place, unique per team (1 = best)
     labels = []
+
+    def record_point(pos):
+        exp = places(pos)
+        for t in tids:
+            i = idx[t]
+            trail[t].append(round(float((pos[:, i] == T - 1).mean()), 4))
+            trail_title[t].append(round(float((pos[:, i] == 0).mean()), 4))
+            trail_playoffs[t].append(round(float((pos[:, i] < 4).mean()), 4))
+            trail_bottom3[t].append(round(float((pos[:, i] >= T - 3).mean()), 4))
+            expect[t].append(exp[i])
+
     for w in [0] + completed:
         res = simulate(w, None, TRAIL_SIMS)
-        for t in tids:
-            trail[t].append(round(float((res["pos"][:, idx[t]] == T - 1).mean()), 4))
-            expect[t].append(places(res["pos"])[idx[t]])
+        record_point(res["pos"])
         labels.append(w)
     daily_by_home = {}  # per live matchup: win chance on each day of the week (the Scoreboard's rolling chart)
     if live_mp is not None:  # live week exists; its odds may be empty while hidden, the strength model then stands in
@@ -138,13 +150,9 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live, days=N
                 for r in live_rows:
                     daily_by_home[r["home"]].append(round(probs[(r["mp"], r["home"])], 4))
                 day_now = simulate(live_mp - 1, probs, TRAIL_SIMS)
-                for t in tids:
-                    trail[t].append(round(float((day_now["pos"][:, idx[t]] == T - 1).mean()), 4))
-                    expect[t].append(places(day_now["pos"])[idx[t]])
+                record_point(day_now["pos"])
                 labels.append(f"d{d}")
-        for t in tids:
-            trail[t].append(round(float((now["pos"][:, idx[t]] == T - 1).mean()), 4))
-            expect[t].append(places(now["pos"])[idx[t]])
+        record_point(now["pos"])
         labels.append(f"d{max(days)}" if days else "live")
 
     seed_of = {s["id"]: s["seed"] for s in data["standings"]}
@@ -166,10 +174,18 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live, days=N
             "record": [int(w - 0.5 * ti) + standing[t][0], int(gp - w - 0.5 * ti) + standing[t][1], ti + standing[t][2]],
             "games_left": int(now["left"][i]) if now["left"][i] else 0,
             "proj_wins": round(float(now["sim_wins"][:, i].mean()), 1),
-            "p_last": round(float((ranks == T).mean()), 4),
+            "p_title": round(float((ranks == 1).mean()), 4),
+            "p_playoffs": round(float((ranks <= 4).mean()), 4),
             "p_bottom3": round(float((ranks > T - 3).mean()), 4),
+            "p_last": round(float((ranks == T).mean()), 4),
             "rank_p10": int(np.percentile(ranks, 10)), "rank_med": int(np.median(ranks)), "rank_p90": int(np.percentile(ranks, 90)),
-            "strength": round(float(now["s"][i]), 3), "trail": trail[t], "expect": expect[t],
+            "strength": round(float(now["s"][i]), 3),
+            "trail": trail[t],
+            "trail_last": trail[t],
+            "trail_title": trail_title[t],
+            "trail_playoffs": trail_playoffs[t],
+            "trail_bottom3": trail_bottom3[t],
+            "expect": expect[t],
             "finish": [round(float((ranks == r).mean()), 4) for r in range(1, T + 1)],  # chance of each finish, 1st to last
         })
     out.sort(key=lambda x: (-x["p_last"], x["proj_wins"]))
