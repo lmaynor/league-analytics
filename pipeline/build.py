@@ -12,7 +12,7 @@ import sys
 import traceback
 
 from espn_client import ROOT
-from features import cheerios, history, live, race, records, standings, superlatives, swaps
+from features import cheerios, history, live, lineup, race, records, standings, superlatives, swaps
 from matchups import CURRENT
 
 RAW = ROOT / "data" / "raw"
@@ -113,6 +113,7 @@ def main():
         return {"live.json": out or {"active": False}}
     written += run("live", only, do_live)
     written += run("cheerios", only, lambda: {"cheerios.json": cheerios.build(per_season, RAW)})
+    written += run("lineup", only, lambda: {"lineup.json": lineup.build(per_season, RAW)})
     written += run("swaps", only, lambda: {"swaps.json": swaps.build(per_season, RAW, live_out)})
     written += run("race", only, lambda: {"race.json": race.build(per_season, RAW, live_out)})
     written += run("superlatives", only, lambda: {"superlatives.json": superlatives.build(per_season, RAW)})
