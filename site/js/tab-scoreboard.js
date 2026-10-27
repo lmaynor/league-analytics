@@ -125,6 +125,20 @@ function scoreboard() {
   wireDeck();
 }
 
+function makeAwardCard({ badge, badgeClass = "", metric, title, subtitle, narrative }) {
+  return `<div class="award-card">
+    <div class="award-card-top">
+      <span class="award-badge ${badgeClass}">${badge}</span>
+      <span class="award-metric">${metric}</span>
+    </div>
+    <div class="award-card-main">
+      <div class="award-title">${esc(title)}</div>
+      <div class="award-subtitle">${esc(subtitle)}</div>
+    </div>
+    <div class="award-narrative">${narrative}</div>
+  </div>`;
+}
+
 function weeklyRecap() {
   const d = S.seasons[S.meta.current] || D();
   const L = S.live;
@@ -143,32 +157,182 @@ function weeklyRecap() {
   const worst = awardObj?.worst || awardObj;
   const mvp = awardObj?.best;
 
-  const mvpHtml = mvp ? `<div class="award"><span class="award-tag" style="color:var(--color-accent-deep)">Weekly MVP</span><b>${esc(mvp.name)}</b>
-    <span class="sub">${esc(mvp.owner)} · ${esc(mvp.team)} · ${mvp.starts} starts · +${mvp.score.toFixed(1)} rating</span></div>` : "";
-  const awardHtml = worst ? `<div class="award"><span class="award-tag">Worst Healthy Starter</span><b>${esc(worst.name)}</b>
-    <span class="sub">${esc(worst.owner)} · ${esc(worst.team)} · ${worst.starts} starts · ${worst.score.toFixed(1)} rating</span></div>` : "";
+  const cards = [];
 
+  // 1. Weekly MVP
+  if (mvp) {
+    cards.push(makeAwardCard({
+      badge: "👑 Weekly MVP",
+      badgeClass: "good",
+      metric: `+${mvp.score.toFixed(1)} Rating`,
+      title: mvp.name,
+      subtitle: `${mvp.owner} · ${mvp.team}`,
+      narrative: `Started ${mvp.starts} games, setting the league high-water mark for weekly player performance.`
+    }));
+  }
+
+  // 2. Worst Healthy Starter (Cardboard Starter)
+  if (worst) {
+    cards.push(makeAwardCard({
+      badge: "🗑️ Cardboard Starter",
+      badgeClass: "bad",
+      metric: `${worst.score.toFixed(1)} Rating`,
+      title: worst.name,
+      subtitle: `${worst.owner} · ${worst.team}`,
+      narrative: `Started ${worst.starts} healthy games and bottomed out with the lowest starter score in the league.`
+    }));
+  }
+
+  // 3. Biggest Throw
   const drama = S.collapse?.seasons?.[currSeason]?.[String(S.week)];
-  const dramaHtml = drama ? `<div class="award"><span class="award-tag" style="color:var(--heat-bad)">Biggest Throw</span><b>${esc(drama.team)}</b>
-    <span class="sub">${esc(drama.owner)} · had a ${Math.round(drama.peak * 100)}% chance at one point, fell ${Math.round(drama.drop * 100)} points, lost ${drama.final}–${drama.final_opp}${drama.ties ? `–${drama.ties}` : ""} to ${esc(drama.opp)}</span></div>` : "";
+  if (drama) {
+    cards.push(makeAwardCard({
+      badge: "🪓 Biggest Throw",
+      badgeClass: "drama",
+      metric: `Peaked at ${Math.round(drama.peak * 100)}%`,
+      title: drama.team,
+      subtitle: `${drama.owner} vs ${drama.opp}`,
+      narrative: `Held a commanding ${Math.round(drama.peak * 100)}% win chance before choking away the lead to lose ${drama.final}–${drama.final_opp}.`
+    }));
+  }
 
-  let nailbiterHtml = "", blowoutHtml = "";
+  // 4. Bench Regret of the Week (Couch Coach)
+  const swapsWeek = S.swaps?.weeks?.[String(S.week)] || [];
+  let bestSwap = null, swapTeam = null;
+  for (const sw of swapsWeek) {
+    const h = d.teams[sw.home], a = d.teams[sw.away];
+    for (const [list, tm] of [[sw.home_swaps, h], [sw.away_swaps, a]]) {
+      for (const s of (list || [])) {
+        if (!bestSwap || s.cats > bestSwap.cats || (s.to[0] > s.to[1] && bestSwap.to[0] <= bestSwap.to[1])) {
+          bestSwap = s;
+          swapTeam = tm;
+        }
+      }
+    }
+  }
+  if (bestSwap && swapTeam) {
+    const flipped = bestSwap.to[0] > bestSwap.to[1] && bestSwap.from[0] <= bestSwap.from[1];
+    cards.push(makeAwardCard({
+      badge: "🤦 Bench Regret",
+      badgeClass: "bad",
+      metric: flipped ? "Flipped Matchup (L)" : `Cost ${bestSwap.cats} Cat${bestSwap.cats === 1 ? "" : "s"}`,
+      title: swapTeam.name,
+      subtitle: `${swapTeam.owner_name} · Start ${bestSwap.in} over ${bestSwap.out}`,
+      narrative: `Leaving <b>${esc(bestSwap.in)}</b> on the pine turned a ${bestSwap.to[0]}–${bestSwap.to[1]} win into a ${bestSwap.from[0]}–${bestSwap.from[1]} loss.`
+    }));
+  }
+
+  // 5. Weekly xWin Analysis (Lucky Bastard & Tough Luck Team)
   const finished = w.matchups.filter((m) => m.hw + m.aw + m.t > 0);
   if (finished.length && !isLive) {
+    const rev = Object.fromEntries(d.cats.map((c) => [c.id, c.reverse]));
+    const teamStats = {};
+    for (const m of finished) {
+      teamStats[m.home] = { won: m.hw > m.aw, score: `${m.hw}–${m.aw}${m.t ? `–${m.t}` : ""}`, stats: m.hs, team: d.teams[m.home] };
+      teamStats[m.away] = { won: m.aw > m.hw, score: `${m.aw}–${m.hw}${m.t ? `–${m.t}` : ""}`, stats: m.as, team: d.teams[m.away] };
+    }
+    const tids = Object.keys(teamStats);
+    const xWins = {};
+    for (const tid of tids) {
+      let xw = 0;
+      for (const oid of tids) {
+        if (oid === tid) continue;
+        let cw = 0, cl = 0;
+        for (const c of d.cats) {
+          const vT = teamStats[tid].stats[c.id], vO = teamStats[oid].stats[c.id];
+          if (vT == null || vO == null || vT === vO) continue;
+          if (rev[c.id] ? vT < vO : vT > vO) cw++;
+          else cl++;
+        }
+        if (cw > cl) xw += 1;
+        else if (cw === cl) xw += 0.5;
+      }
+      xWins[tid] = xw;
+    }
+
+    // Lucky Bastard: won with lowest xWin
+    const winners = tids.filter((t) => teamStats[t].won).sort((a, b) => xWins[a] - xWins[b]);
+    if (winners.length && xWins[winners[0]] <= 4.0) {
+      const lucky = teamStats[winners[0]];
+      const xwVal = xWins[winners[0]];
+      cards.push(makeAwardCard({
+        badge: "🍀 Lucky Bastard",
+        badgeClass: "lucky",
+        metric: `${xwVal.toFixed(1)}/9 xWins`,
+        title: lucky.team.name,
+        subtitle: `${lucky.team.owner_name} · Won ${lucky.score}`,
+        narrative: `Escaped with a ${lucky.score} victory despite a ${xwVal.toFixed(1)}/9 xWin performance—would have lost to ${9 - Math.floor(xwVal)} other teams.`
+      }));
+    }
+
+    // Tough Luck: lost with highest xWin
+    const losers = tids.filter((t) => !teamStats[t].won).sort((a, b) => xWins[b] - xWins[a]);
+    if (losers.length && xWins[losers[0]] >= 5.0) {
+      const unlucky = teamStats[losers[0]];
+      const xwVal = xWins[losers[0]];
+      cards.push(makeAwardCard({
+        badge: "⚡ Tough Luck",
+        badgeClass: "drama",
+        metric: `${xwVal.toFixed(1)}/9 xWins`,
+        title: unlucky.team.name,
+        subtitle: `${unlucky.team.owner_name} · Lost ${unlucky.score}`,
+        narrative: `Put up a dominant ${xwVal.toFixed(1)}/9 xWin performance that would have beaten ${Math.floor(xwVal)} other teams, but caught the wrong opponent.`
+      }));
+    }
+
+    // 6. Nailbiter of the Week
     const sortedByMargin = [...finished].sort((a, b) => Math.abs(a.hw - a.aw) - Math.abs(b.hw - b.aw));
     const closest = sortedByMargin[0];
-    const biggest = sortedByMargin[sortedByMargin.length - 1];
     if (closest && Math.abs(closest.hw - closest.aw) <= 1) {
       const h = d.teams[closest.home], a = d.teams[closest.away];
-      nailbiterHtml = `<div class="award"><span class="award-tag">Nailbiter of the Week</span><b>${esc(h.name)} vs ${esc(a.name)} (${closest.hw}–${closest.aw}${closest.t ? `–${closest.t}` : ""})</b>
-        <span class="sub">Decided by 1 category margin</span></div>`;
+      cards.push(makeAwardCard({
+        badge: "🍿 Nailbiter",
+        badgeClass: "drama",
+        metric: "1 Cat Margin",
+        title: `${h.name} vs ${a.name}`,
+        subtitle: `Final: ${closest.hw}–${closest.aw}${closest.t ? `–${closest.t}` : ""}`,
+        narrative: "A down-to-the-wire cardiac sweat that was decided by the skin of their teeth on Sunday night."
+      }));
     }
+
+    // 7. Blowout of the Week
+    const biggest = sortedByMargin[sortedByMargin.length - 1];
     if (biggest && Math.abs(biggest.hw - biggest.aw) >= 3) {
       const winner = biggest.hw > biggest.aw ? d.teams[biggest.home] : d.teams[biggest.away];
       const loser = biggest.hw > biggest.aw ? d.teams[biggest.away] : d.teams[biggest.home];
-      blowoutHtml = `<div class="award"><span class="award-tag">Blowout of the Week</span><b>${esc(winner.name)} over ${esc(loser.name)} (${Math.max(biggest.hw, biggest.aw)}–${Math.min(biggest.hw, biggest.aw)})</b>
-        <span class="sub">+${Math.abs(biggest.hw - biggest.aw)} category victory</span></div>`;
+      cards.push(makeAwardCard({
+        badge: "🚜 Beatdown",
+        badgeClass: "good",
+        metric: `+${Math.abs(biggest.hw - biggest.aw)} Cat Victory`,
+        title: `${winner.name} over ${loser.name}`,
+        subtitle: `Final: ${Math.max(biggest.hw, biggest.aw)}–${Math.min(biggest.hw, biggest.aw)}`,
+        narrative: "A ruthless, lopsided statement win that completely dismantled the opponent from day one."
+      }));
     }
+  }
+
+  // 8. ICU Ward (Most starter absences)
+  const cheeriosWeek = S.cheerios?.seasons?.[currSeason]?.weeks?.[String(S.week)] || [];
+  let maxAbsences = 0, icuTeam = null, icuNames = [];
+  for (const ch of cheeriosWeek) {
+    const h = d.teams[ch.home], a = d.teams[ch.away];
+    for (const [side, tm] of [[ch.home_side, h], [ch.away_side, a]]) {
+      if (side && side.games > maxAbsences) {
+        maxAbsences = side.games;
+        icuTeam = tm;
+        icuNames = side.missed.map((p) => p.name);
+      }
+    }
+  }
+  if (icuTeam && maxAbsences >= 2) {
+    cards.push(makeAwardCard({
+      badge: "🩹 ICU Ward",
+      badgeClass: "bad",
+      metric: `${maxAbsences} Missed Starts`,
+      title: icuTeam.name,
+      subtitle: `${icuTeam.owner_name} · Injury Ward`,
+      narrative: `Hit hardest by the injury bug with ${maxAbsences} missed starter games (${icuNames.slice(0, 3).join(", ")}).`
+    }));
   }
 
   const debriefs = w.matchups.map((m) => {
@@ -187,13 +351,13 @@ function weeklyRecap() {
 
   panel().innerHTML = `<div class="toolbar">${picker}</div>
     <h1>Week ${S.week} Recap</h1>
-    <div class="sub">${isLive ? "In-progress week. Awards finalize when all games finish." : "Completed matchup analysis, awards, and what-ifs."}</div>
-    <div class="awards-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:8px;margin-top:12px">
-      ${mvpHtml}${awardHtml}${dramaHtml}${nailbiterHtml}${blowoutHtml}
+    <div class="sub">${isLive ? "In-progress week. Awards finalize when all games finish." : "Weekly awards, hindsight blunders, and category debriefs."}</div>
+    <div class="awards-grid">
+      ${cards.join("")}
     </div>
-    <h2 style="margin-top:24px">Trades Debrief</h2>
+    <h2 style="margin-top:28px">Trades Debrief</h2>
     ${tradesDebrief(S.week)}
-    <h2 style="margin-top:24px">Matchup Debriefs</h2>
+    <h2 style="margin-top:28px">Matchup Debriefs</h2>
     ${debriefs}`;
 }
 

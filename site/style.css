@@ -424,6 +424,21 @@ td.trail { padding-top: 4px; padding-bottom: 4px; }
 .award-tag { font: 600 11px var(--font-display); letter-spacing: .04em; text-transform: uppercase; color: var(--color-accent-deep); }
 .award b { font: 600 15px var(--font-display); }
 
+/* Weekly Recap Awards Grid & Cards */
+.awards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; margin-top: 14px; }
+.award-card { display: flex; flex-direction: column; justify-content: space-between; background: var(--color-paper); border: 1px solid var(--color-rule); border-radius: var(--radius-card); padding: 14px 16px; box-shadow: var(--shadow-card); min-height: 140px; }
+.award-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.award-badge { font: 600 11px var(--font-display); letter-spacing: .05em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; background: var(--color-paper-3); color: var(--color-ink-2); display: inline-flex; align-items: center; gap: 4px; }
+.award-badge.good { background: var(--color-accent-wash); color: var(--color-accent-deep); }
+.award-badge.bad { background: color-mix(in oklch, var(--heat-bad) 15%, transparent); color: color-mix(in oklch, var(--heat-bad) 90%, black); }
+.award-badge.lucky { background: color-mix(in oklch, #10b981 15%, transparent); color: #047857; }
+.award-badge.drama { background: color-mix(in oklch, #f59e0b 15%, transparent); color: #b45309; }
+.award-metric { font: 600 12px var(--font-display); color: var(--muted); font-variant-numeric: tabular-nums; }
+.award-card-main { margin-bottom: 10px; }
+.award-title { font: 600 17px var(--font-display); letter-spacing: -0.015em; color: var(--color-ink); line-height: 1.25; }
+.award-subtitle { font: 400 12px var(--font-body); color: var(--muted); margin-top: 2px; }
+.award-narrative { font: 400 12.5px/1.45 var(--font-body); color: var(--color-ink-2); border-top: 1px dashed var(--color-rule); padding-top: 8px; margin-top: auto; }
+
 /* Trade Machine */
 .trade-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
 .tr-side { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
