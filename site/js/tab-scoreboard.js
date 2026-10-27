@@ -159,7 +159,7 @@ function weeklyRecap() {
 
   const cards = [];
 
-  // 1. Weekly MVP
+  // Weekly MVP: highest player score among starters
   if (mvp) {
     cards.push(makeAwardCard({
       badge: "👑 Weekly MVP",
@@ -171,7 +171,7 @@ function weeklyRecap() {
     }));
   }
 
-  // 2. Worst Healthy Starter (Cardboard Starter)
+  // Cardboard Starter: lowest score by a healthy starter
   if (worst) {
     cards.push(makeAwardCard({
       badge: "🗑️ Cardboard Starter",
@@ -183,7 +183,7 @@ function weeklyRecap() {
     }));
   }
 
-  // 3. Biggest Throw
+  // Biggest Throw: largest win-probability drop
   const drama = S.collapse?.seasons?.[currSeason]?.[String(S.week)];
   if (drama) {
     cards.push(makeAwardCard({
@@ -196,7 +196,7 @@ function weeklyRecap() {
     }));
   }
 
-  // 4. Bench Regret of the Week (Couch Coach)
+  // Bench Regret: optimal bench-to-starter swap
   const swapsWeek = S.swaps?.weeks?.[String(S.week)] || [];
   let bestSwap = null, swapTeam = null;
   for (const sw of swapsWeek) {
@@ -222,7 +222,7 @@ function weeklyRecap() {
     }));
   }
 
-  // 5. Weekly xWin Analysis (Lucky Bastard & Tough Luck Team)
+  // Weekly xWin Analysis: schedule fortune and misfortune
   const finished = w.matchups.filter((m) => m.hw + m.aw + m.t > 0);
   if (finished.length && !isLive) {
     const rev = Object.fromEntries(d.cats.map((c) => [c.id, c.reverse]));
@@ -250,7 +250,7 @@ function weeklyRecap() {
       xWins[tid] = xw;
     }
 
-    // Lucky Bastard: won with lowest xWin
+    // Won with lowest xWin
     const winners = tids.filter((t) => teamStats[t].won).sort((a, b) => xWins[a] - xWins[b]);
     if (winners.length && xWins[winners[0]] <= 4.0) {
       const lucky = teamStats[winners[0]];
@@ -261,11 +261,11 @@ function weeklyRecap() {
         metric: `${xwVal.toFixed(1)}/9 xWins`,
         title: lucky.team.name,
         subtitle: `${lucky.team.owner_name} · Won ${lucky.score}`,
-        narrative: `Escaped with a ${lucky.score} victory despite a ${xwVal.toFixed(1)}/9 xWin performance—would have lost to ${9 - Math.floor(xwVal)} other teams.`
+        narrative: `Escaped with a ${lucky.score} victory despite a ${xwVal.toFixed(1)}/9 xWin performance (would have lost to ${9 - Math.floor(xwVal)} other teams).`
       }));
     }
 
-    // Tough Luck: lost with highest xWin
+    // Lost with highest xWin
     const losers = tids.filter((t) => !teamStats[t].won).sort((a, b) => xWins[b] - xWins[a]);
     if (losers.length && xWins[losers[0]] >= 5.0) {
       const unlucky = teamStats[losers[0]];
@@ -280,7 +280,7 @@ function weeklyRecap() {
       }));
     }
 
-    // 6. Nailbiter of the Week
+    // Closest and most lopsided margins
     const sortedByMargin = [...finished].sort((a, b) => Math.abs(a.hw - a.aw) - Math.abs(b.hw - b.aw));
     const closest = sortedByMargin[0];
     if (closest && Math.abs(closest.hw - closest.aw) <= 1) {
@@ -295,7 +295,6 @@ function weeklyRecap() {
       }));
     }
 
-    // 7. Blowout of the Week
     const biggest = sortedByMargin[sortedByMargin.length - 1];
     if (biggest && Math.abs(biggest.hw - biggest.aw) >= 3) {
       const winner = biggest.hw > biggest.aw ? d.teams[biggest.home] : d.teams[biggest.away];
@@ -311,7 +310,7 @@ function weeklyRecap() {
     }
   }
 
-  // 8. ICU Ward (Most starter absences)
+  // ICU Ward: team with the most starter absences
   const cheeriosWeek = S.cheerios?.seasons?.[currSeason]?.weeks?.[String(S.week)] || [];
   let maxAbsences = 0, icuTeam = null, icuNames = [];
   for (const ch of cheeriosWeek) {

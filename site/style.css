@@ -450,11 +450,15 @@ td.trail { padding-top: 4px; padding-bottom: 4px; }
 .awards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; margin-top: 14px; }
 .award-card { display: flex; flex-direction: column; justify-content: space-between; background: var(--color-paper); border: 1px solid var(--color-rule); border-radius: var(--radius-card); padding: 14px 16px; box-shadow: var(--shadow-card); min-height: 140px; }
 .award-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-.award-badge { font: 600 11px var(--font-display); letter-spacing: .05em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; background: var(--color-paper-3); color: var(--color-ink-2); display: inline-flex; align-items: center; gap: 4px; }
+.award-badge { font: 600 11px var(--font-display); letter-spacing: .05em; text-transform: uppercase; padding: 3px 8px; border-radius: var(--radius-input); background: var(--color-paper-3); color: var(--color-ink-2); display: inline-flex; align-items: center; gap: 4px; }
 .award-badge.good { background: var(--color-accent-wash); color: var(--color-accent-deep); }
-.award-badge.bad { background: color-mix(in oklch, var(--heat-bad) 15%, transparent); color: color-mix(in oklch, var(--heat-bad) 90%, black); }
-.award-badge.lucky { background: color-mix(in oklch, #10b981 15%, transparent); color: #047857; }
-.award-badge.drama { background: color-mix(in oklch, #f59e0b 15%, transparent); color: #b45309; }
+.award-badge.bad { background: color-mix(in oklch, #ef4444 14%, transparent); color: #b91c1c; }
+.award-badge.lucky { background: color-mix(in oklch, #10b981 14%, transparent); color: #047857; }
+.award-badge.drama { background: color-mix(in oklch, #f59e0b 14%, transparent); color: #b45309; }
+
+:root[data-theme="dark"] .award-badge.bad { background: color-mix(in oklch, #ef4444 20%, transparent); color: #f87171; }
+:root[data-theme="dark"] .award-badge.lucky { background: color-mix(in oklch, #10b981 20%, transparent); color: #34d399; }
+:root[data-theme="dark"] .award-badge.drama { background: color-mix(in oklch, #f59e0b 20%, transparent); color: #fbbf24; }
 .award-metric { font: 600 12px var(--font-display); color: var(--muted); font-variant-numeric: tabular-nums; }
 .award-card-main { margin-bottom: 10px; }
 .award-title { font: 600 17px var(--font-display); letter-spacing: -0.015em; color: var(--color-ink); line-height: 1.25; }
@@ -480,10 +484,10 @@ td.trail { padding-top: 4px; padding-bottom: 4px; }
 .tr-verdict { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: var(--color-paper-2); border: 1px solid var(--color-rule); border-radius: var(--radius-card); margin-top: 14px; }
 .tr-v-side { display: flex; align-items: center; gap: 12px; }
 .tr-v-side.right { flex-direction: row-reverse; }
-.tr-v-side .tm-name { font: 600 16px var(--font-display); }
+.tr-v-side .tm-name { font-size: 15px; font-weight: 600; font-family: var(--font-display); }
 .tr-v-side .tr-score { font: 600 28px var(--font-display); line-height: 1; color: var(--color-ink); }
 .tr-v-mid { text-align: center; }
-.tr-edge-tag { display: inline-block; font: 600 12px var(--font-display); letter-spacing: .04em; text-transform: uppercase; background: var(--color-accent); color: var(--color-accent-ink); padding: 3px 10px; border-radius: 12px; }
+.tr-edge-tag { display: inline-block; font: 600 12px var(--font-display); letter-spacing: .04em; text-transform: uppercase; background: var(--color-accent); color: var(--color-accent-ink); padding: 3px 10px; border-radius: var(--radius-input); }
 .tr-v-mid small { display: block; font-size: 11px; color: var(--muted); margin-top: 3px; }
 
 /* Visual 9-Category Scorecard */
@@ -497,3 +501,15 @@ td.trail { padding-top: 4px; padding-bottom: 4px; }
 .tr-cat-mid { display: flex; align-items: center; justify-content: center; min-width: 68px; gap: 6px; font: 600 13px var(--font-display); }
 .tr-dot { width: 6px; height: 6px; border-radius: 50%; opacity: 0; }
 .tr-dot.on { opacity: 1; background: var(--color-accent); }
+
+@media (max-width: 640px) {
+  .awards-grid { grid-template-columns: minmax(0, 1fr); }
+  .tr-verdict { flex-direction: column; gap: 12px; padding: 14px; text-align: center; }
+  .tr-v-side, .tr-v-side.right { flex-direction: row; justify-content: space-between; width: 100%; }
+  .tr-v-side .tm-name { font-size: 14px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tr-v-side .tr-score { font-size: 24px; }
+  .tr-cat-row { padding: 6px 10px; gap: 6px; font-size: 12.5px; }
+  .tr-cat-mid { min-width: 56px; gap: 4px; font-size: 11.5px; }
+  .tr-cat-row .v-left, .tr-cat-row .v-right { gap: 4px; }
+  .tr-cat-row .rk-badge { font-size: 10px; padding: 1px 4px; }
+}

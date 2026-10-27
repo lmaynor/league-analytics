@@ -280,11 +280,10 @@ function race() {
   }
   if (!S.raceMode) S.raceMode = "title";
 
-  // Compute summary highlights
+  // Identify market leaders and the 50% playoff bubble cutoff team
   const titleFav = [...d.teams].sort((a, b) => (b.p_title ?? 0) - (a.p_title ?? 0))[0] || d.teams[0];
   const lastFav = [...d.teams].sort((a, b) => (b.p_last ?? 0) - (a.p_last ?? 0))[0] || d.teams[0];
   const topSeedFav = [...d.teams].sort((a, b) => b.proj_wins - a.proj_wins)[0] || d.teams[0];
-  // Playoff bubble: team closest to 50% playoff probability
   const bubbleTeam = [...d.teams].sort((a, b) => Math.abs((a.p_playoffs ?? 0) - 0.5) - Math.abs((b.p_playoffs ?? 0) - 0.5))[0] || d.teams[0];
 
   panel().innerHTML = `
