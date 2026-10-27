@@ -25,6 +25,17 @@ def regular_schedule(league):
             if "away" in m and m.get("playoffTierType", "NONE") == "NONE"]
 
 
+def places(pos):
+    """Unique places for one checkpoint: teams ranked by their average finish, so the table is a real order.
+
+    Rounding each team's own most likely place independently can give two teams the same place, which a
+    final table never does. Ranking by average finish keeps every place used exactly once."""
+    order = np.argsort(pos.mean(axis=0), kind="stable")
+    out = np.empty(pos.shape[1], dtype=int)
+    out[order] = np.arange(1, pos.shape[1] + 1)
+    return [int(v) for v in out]
+
+
 def build_season(season, data, rows, teams, league, prior_by_owner, live):
     sched = regular_schedule(league)
     tids = sorted(teams)
@@ -82,18 +93,18 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live):
     now = simulate(upto_now, live_p)
     # weekly trail: chance of last after the start and after each completed week
     trail = {t: [] for t in tids}
-    expect = {t: [] for t in tids}  # most likely finish (1 = best) after each checkpoint, a whole place
+    expect = {t: [] for t in tids}  # projected place after each checkpoint: a whole place, unique per team (1 = best)
     labels = []
     for w in [0] + completed:
         res = simulate(w, None, TRAIL_SIMS)
         for t in tids:
             trail[t].append(round(float((res["pos"][:, idx[t]] == T - 1).mean()), 4))
-            expect[t].append(int(np.bincount(res["pos"][:, idx[t]], minlength=T).argmax()) + 1)
+            expect[t].append(places(res["pos"])[idx[t]])
         labels.append(w)
     if live_p:
         for t in tids:
             trail[t].append(round(float((now["pos"][:, idx[t]] == T - 1).mean()), 4))
-            expect[t].append(int(np.bincount(now["pos"][:, idx[t]], minlength=T).argmax()) + 1)
+            expect[t].append(places(now["pos"])[idx[t]])
         labels.append("live")
 
     seed_of = {s["id"]: s["seed"] for s in data["standings"]}

@@ -26,7 +26,8 @@ function drawMarket(d) {
   const step = top > 0.6 ? 0.25 : top > 0.3 ? 0.1 : 0.05;
   const max = Math.min(1, Math.ceil(top / step) * step);
   const val = (t, i) => (mode === "last" ? `${Math.round(t.trail[i] * 100)}%` : ordinal(t.expect[i]));
-  const legend = d.teams.map((t) => {
+  const legendTeams = mode === "finish" ? [...d.teams].sort((a, b) => a.expect[n - 1] - b.expect[n - 1]) : d.teams;  // finish: list in rank order
+  const legend = legendTeams.map((t) => {
     const cur = series(t)[n - 1], prev = n > 1 ? series(t)[n - 2] : cur;
     const dl = mode === "last" ? Math.round((cur - prev) * 100) : prev - cur;  // finish: positive = moved up a place
     const txt = mode === "last" ? (cur >= 0.995 ? "100%" : cur < 0.005 ? "0%" : `${Math.round(cur * 100)}%`) : ordinal(cur);
@@ -94,7 +95,7 @@ function race() {
   const finish = (t) => (t.rank_p10 === t.rank_p90 ? ordinal(t.rank_med) : `${ordinal(t.rank_p10)} to ${ordinal(t.rank_p90)}`);
   panel().innerHTML = `<h1>${d.season} Race for Last</h1>
     <h2 class="mk-title">${S.raceMode === "finish" ? "Most Likely Final Position" : "Odds of Finishing Last"}</h2>
-    <div class="sub">${d.complete ? "Final standings. Lines show how each team's odds moved week by week." : `The rest of the regular season, simulated 10,000 times from each team's category strength and the real schedule. ${d.live ? "This week's matchups use the live odds. " : ""}Final Position shows each team's most likely finish, 1st at the top.`}</div>
+    <div class="sub">${d.complete ? "Final standings. Lines show how each team's odds moved week by week." : `The rest of the regular season, simulated 10,000 times from each team's category strength and the real schedule. ${d.live ? "This week's matchups use the live odds. " : ""}Final Position shows each team's projected place, 1st at the top.`}</div>
     <div class="card market" id="market" style="margin-top:12px"></div>
     <div class="card tbl-wrap" style="margin-top:12px"><table class="sortable">
       <tr><th class="l">Team</th><th class="hide-sm">Record</th><th class="hide-sm">Left</th><th class="hide-sm">Proj. Wins</th><th class="l">Chance of Last</th><th class="hide-sm">Bottom 3</th><th class="hide-sm">Likely Finish</th><th>Trail</th></tr>
