@@ -215,10 +215,10 @@ function weeklyRecap() {
     cards.push(makeAwardCard({
       badge: "🤦 Bench Regret",
       badgeClass: "bad",
-      metric: flipped ? "Flipped Matchup (L)" : `Cost ${bestSwap.cats} Cat${bestSwap.cats === 1 ? "" : "s"}`,
+      metric: flipped ? `<span class="flip">Would have flipped the matchup</span>` : `Cost ${bestSwap.cats} Cat${bestSwap.cats === 1 ? "" : "s"}`,
       title: swapTeam.name,
       subtitle: `${swapTeam.owner_name} · Start ${bestSwap.in} over ${bestSwap.out}`,
-      narrative: `Leaving <b>${esc(bestSwap.in)}</b> on the pine turned a ${bestSwap.to[0]}–${bestSwap.to[1]} win into a ${bestSwap.from[0]}–${bestSwap.from[1]} loss.`
+      narrative: `Leaving <b>${esc(bestSwap.in)}</b> on the bench turned a ${bestSwap.to[0]}–${bestSwap.to[1]} win into a ${bestSwap.from[0]}–${bestSwap.from[1]} loss.`
     }));
   }
 
@@ -403,7 +403,10 @@ function swapsBlock(m, h, a, wk) {
   const sw = weekList.find((x) => x.home === m.home);
   if (!sw) return "";
   const rec = (r) => `${r[0]}-${r[1]}${r[2] ? `-${r[2]}` : ""}`;
-  const line = (list, t) => (list || []).map((x) => `<div class="rl"><b>${esc(t.name)}</b>: start <b>${esc(x.in)}</b> over ${esc(x.out)} this week and it's ${rec(x.to)} instead of ${rec(x.from)}.</div>`).join("");
+  const line = (list, t) => (list || []).map((x) => {
+    const flipped = x.to[0] > x.to[1] && x.from[0] <= x.from[1];
+    return `<div class="rl"><b>${esc(t.name)}</b>: start <b>${esc(x.in)}</b> over ${esc(x.out)} this week and it's ${rec(x.to)} instead of ${rec(x.from)}.${flipped ? ' <span class="flip">Would have flipped the matchup</span>' : ""}</div>`;
+  }).join("");
   const body = line(sw.home_swaps, h) + line(sw.away_swaps, a);
   return body ? `<div class="cheerios swaps"><h4>Bench Regret</h4>${body}</div>` : "";
 }

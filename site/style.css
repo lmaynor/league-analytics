@@ -218,7 +218,7 @@ th.sth:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -
 .cheerios h4 { margin: 0; font: 500 12px var(--font-display); color: var(--muted); letter-spacing: .02em; }
 .cheerios .rl { color: var(--color-ink-2); }
 .cheerios .rl b { font-weight: 500; color: var(--text); }
-.cheerios .flip { color: var(--color-accent-ink); background: var(--color-accent); border-radius: 3px; padding: 0 6px; font: 600 11px var(--font-display); white-space: nowrap; }
+.flip, .cheerios .flip { color: var(--color-accent-ink); background: var(--color-accent); border-radius: 3px; padding: 2px 7px; font: 600 11px var(--font-display); white-space: nowrap; display: inline-block; }
 
 
 footer details { max-width: 560px; margin: 0 auto; text-align: left; }
