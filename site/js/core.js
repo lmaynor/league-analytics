@@ -62,7 +62,7 @@ function go(tab) {
   location.hash = sub ? tab + "/" + sub : tab;
   document.querySelectorAll("#tabs button, #tabbar button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
   window.scrollTo(0, 0);
-  $("#season").parentElement.style.display = NO_SEASON.includes(tab) ? "none" : "";
+  $("#season-select").parentElement.style.display = NO_SEASON.includes(tab) ? "none" : "";
   render();
 }
 function render() { (TABS[S.tab] || TABS.matchups || TABS.scoreboard)(); markSortable($("#view"), ["Finish by Season", "#"]); }

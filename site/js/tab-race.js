@@ -2,7 +2,7 @@
 const ordinal = (n) => `${n}${["th", "st", "nd", "rd"][(n % 100 >> 3) ^ 1 && n % 10 < 4 ? n % 10 : 0]}`;
 const pctTxt = (p) => (p == null ? "–" : p >= 0.995 ? "100%" : p < 0.005 ? (p > 0 ? "<1%" : "0%") : p < 0.1 ? `${(p * 100).toFixed(1)}%` : `${Math.round(p * 100)}%`);
 const recTxt = (r) => `${r[0]}-${r[1]}${r[2] ? `-${r[2]}` : ""}`;
-const lbl = (l) => (l === 0 ? "Start" : l === "live" ? "Live" : typeof l === "string" && l[0] === "d" ? `Day ${l.slice(1)}` : `Wk ${l}`);
+const lbl = (l) => (l === 0 ? "Start" : l === "live" || (typeof l === "string" && l[0] === "d") ? "Live" : `Wk ${l}`);
 
 function spark(trail, isOrdinal = false) {
   if (!trail || !trail.length) return "";
@@ -133,11 +133,9 @@ function drawMarket(d) {
 
   const plot = box.querySelector(".mk-plot"), svg = box.querySelector("#mk-svg");
   if (!plot || !svg) return;
-  const W = Math.max(260, plot.clientWidth || 600);
-  const H = 270, L = 38, R = 14, T0 = 12, B = 28;
+  const W = Math.max(260, plot.clientWidth || (box.clientWidth ? box.clientWidth - 32 : 360));
+  const H = 270, L = 42, R = 26, T0 = 12, B = 28;
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-  svg.setAttribute("width", W);
-  svg.setAttribute("height", H);
 
   const series = (t) => mkt.series(t);
   const top = Math.max(0.12, ...d.teams.flatMap((t) => series(t)));
@@ -163,14 +161,19 @@ function drawMarket(d) {
     }
   }
 
-  const every = Math.ceil(n / Math.max(2, Math.floor((W - L) / 52)));
-  const shown = d.trail_labels.map((_, i) => i).filter((i) => i % every === 0);
+  const every = Math.ceil(n / Math.max(2, Math.floor((W - L - R) / 50)));
+  const shown = [];
+  for (let i = 0; i < n; i += every) shown.push(i);
   if (shown[shown.length - 1] !== n - 1) {
-    if (n - 1 - shown[shown.length - 1] < every * 0.7) shown.pop();
-    shown.push(n - 1);
+    if (n - 1 - shown[shown.length - 1] < every * 0.7 && shown.length > 1) {
+      shown[shown.length - 1] = n - 1;
+    } else {
+      shown.push(n - 1);
+    }
   }
   shown.forEach((i) => {
-    g += `<text x="${x(i)}" y="${H - 8}" class="mk-ax" text-anchor="${i === 0 ? "start" : i === n - 1 ? "end" : "middle"}">${lbl(d.trail_labels[i])}</text>`;
+    g += `<line x1="${x(i).toFixed(1)}" x2="${x(i).toFixed(1)}" y1="${H - B}" y2="${H - B + 4}" class="mk-grid"/>
+      <text x="${x(i).toFixed(1)}" y="${H - 10}" class="mk-ax" text-anchor="middle">${lbl(d.trail_labels[i])}</text>`;
   });
 
   const order = [...d.teams].sort((a, b) => (focus === a.id) - (focus === b.id));
@@ -193,7 +196,8 @@ function drawMarket(d) {
     cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.style.display = "";
     const sorted = [...d.teams].sort((a, b) => (!mkt.isOrdinal ? (series(b)[i] ?? 0) - (series(a)[i] ?? 0) : (series(a)[i] ?? 10) - (series(b)[i] ?? 10))).slice(0, 5);
     const rows = sorted.map((t) => `<div><i style="background:${color(t)}"></i>${esc(t.owner)}<b>${mkt.format(series(t)[i])}</b></div>`).join("");
-    tip.innerHTML = `<strong>${lbl(d.trail_labels[i])}</strong>${rows}`;
+    const tipLabel = (l) => (l === 0 ? "Preseason" : l === "live" || (typeof l === "string" && l[0] === "d") ? `Week ${d.weeks_done + 1 || 2} (Live)` : `Week ${l}`);
+    tip.innerHTML = `<strong>${tipLabel(d.trail_labels[i])}</strong>${rows}`;
     tip.style.display = "block";
     const tw = tip.offsetWidth, px = x(i);
     tip.style.left = `${Math.max(4, Math.min(W - tw - 4, px + 12 > W - tw ? px - tw - 12 : px + 12))}px`;
