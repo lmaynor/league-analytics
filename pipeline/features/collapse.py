@@ -1,4 +1,4 @@
-"""Most dramatic loss: the lost matchup where the loser's projected win chance fell furthest.
+"""Biggest throw: the lost matchup where the loser's projected win chance fell furthest.
 
 Each day of a completed matchup gets a projected win chance for both teams, from the same blend the
 rolling chart uses: the season strength model (category share before the week) and that day's
@@ -66,7 +66,7 @@ def build_season(season, data, rows, teams, days):
                 if cur is None or drop > cur["drop"]:
                     out[str(mp)] = {"team": teams[me]["name"], "owner": teams[me]["owner_name"], "opp": teams[opp]["name"],
                                     "peak": round(peak, 3), "end": round(p_series[-1], 3), "drop": round(drop, 3),
-                                    "final": final_me, "final_opp": final_opp}
+                                    "final": final_me, "final_opp": final_opp, "ties": r["t"]}
     return out
 
 
