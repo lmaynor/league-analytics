@@ -159,8 +159,39 @@ function weeklyRecap() {
     <h1>Week ${S.week} Recap</h1>
     <div class="sub">${isLive ? "In-progress week. Awards finalize when all games finish." : "Completed matchup analysis, awards, and what-ifs."}</div>
     ${awardHtml}${dramaHtml}
+    <h2>Trades Debrief</h2>
+    ${tradesDebrief(S.week)}
     <h2>Matchup Debriefs</h2>
     ${debriefs}`;
+}
+
+function tradesDebrief(mp) {
+  const weekTrades = S.trades?.weeks?.[String(mp)] || [];
+  if (!weekTrades.length) {
+    return `<div class="card" style="margin-top:10px;padding:12px 14px;display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center">
+      <div>
+        <b>No trades completed in Week ${mp}</b>
+        <div class="sub">Simulate prospective player swaps and 9-category impact in the Trade Machine.</div>
+      </div>
+      <button class="pill" style="cursor:pointer;padding:5px 12px;font-size:12px;background:var(--color-key-face);border:1px solid var(--color-rule-2);color:var(--text)" onclick="setSub('teams','trades');go('teams')">Trade Machine →</button>
+    </div>`;
+  }
+
+  return weekTrades.map((t) => {
+    const pA = t.players_a.map((p) => p.name).join(", ");
+    const pB = t.players_b.map((p) => p.name).join(", ");
+    const winnerName = t.winner_id ? (t.winner_id === t.team_a.id ? t.team_a.name : t.team_b.name) : "Even Trade";
+    return `<div class="card" style="margin-top:10px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:8px;border-bottom:1px solid var(--color-rule)">
+        <div><b>${esc(t.team_a.name)}</b> ⇄ <b>${esc(t.team_b.name)}</b></div>
+        <span class="pill" style="font-weight:600;color:var(--color-accent-deep);background:var(--color-accent-wash)">Winner: ${esc(winnerName)} (${t.margin})</span>
+      </div>
+      <div style="margin-top:8px;display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:8px;font-size:13px">
+        <div><b>${esc(t.team_a.name)} got:</b> <span class="sub" style="display:inline">${esc(pA)}</span></div>
+        <div><b>${esc(t.team_b.name)} got:</b> <span class="sub" style="display:inline">${esc(pB)}</span></div>
+      </div>
+    </div>`;
+  }).join("");
 }
 
 function matchupsTab() {

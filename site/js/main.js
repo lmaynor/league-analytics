@@ -1,7 +1,7 @@
 /* Boot: load data files, then route to the first tab. Loaded after every tab file. */
 async function init() {
-  const [meta, live, hist, recs, reg, sup, rac, swp, lup, col, ros] = await Promise.all([j("data/meta.json"), j("data/live.json"), j("data/history.json"), j("data/records.json"), j("data/cheerios.json"), j("data/superlatives.json"), j("data/race.json"), j("data/swaps.json"), j("data/lineup.json"), j("data/collapse.json"), j("data/rosters.json")]);
-  S.meta = meta; S.live = live; S.history = hist; S.records = recs; S.cheerios = reg; S.supers = sup; S.race = rac; S.swaps = swp; S.lineup = lup; S.collapse = col; S.rosters = ros;
+  const [meta, live, hist, recs, reg, sup, rac, swp, lup, col, ros, trd] = await Promise.all([j("data/meta.json"), j("data/live.json"), j("data/history.json"), j("data/records.json"), j("data/cheerios.json"), j("data/superlatives.json"), j("data/race.json"), j("data/swaps.json"), j("data/lineup.json"), j("data/collapse.json"), j("data/rosters.json"), j("data/trades.json")]);
+  S.meta = meta; S.live = live; S.history = hist; S.records = recs; S.cheerios = reg; S.supers = sup; S.race = rac; S.swaps = swp; S.lineup = lup; S.collapse = col; S.rosters = ros; S.trades = trd;
   $("#league-name").textContent = meta.league_name;
   document.title = meta.league_name + " · Analytics";
   S.season = meta.current;
@@ -66,8 +66,8 @@ async function pageIsStale() {
 async function refreshData() {
   if (await pageIsStale()) { location.reload(); return; }
   const t = Date.now(), fresh = (u) => j(u + "?t=" + t);
-  const [meta, live, hist, recs, che, sup, rac, swp, lup, col, ros] = await Promise.all([fresh("data/meta.json"), fresh("data/live.json"), fresh("data/history.json"), fresh("data/records.json"), fresh("data/cheerios.json"), fresh("data/superlatives.json"), fresh("data/race.json"), fresh("data/swaps.json"), fresh("data/lineup.json"), fresh("data/collapse.json"), fresh("data/rosters.json")]);
-  Object.assign(S, { meta, live, history: hist, records: recs, cheerios: che, supers: sup, race: rac, swaps: swp, lineup: lup, collapse: col, rosters: ros, seasons: {} });
+  const [meta, live, hist, recs, che, sup, rac, swp, lup, col, ros, trd] = await Promise.all([fresh("data/meta.json"), fresh("data/live.json"), fresh("data/history.json"), fresh("data/records.json"), fresh("data/cheerios.json"), fresh("data/superlatives.json"), fresh("data/race.json"), fresh("data/swaps.json"), fresh("data/lineup.json"), fresh("data/collapse.json"), fresh("data/rosters.json"), fresh("data/trades.json")]);
+  Object.assign(S, { meta, live, history: hist, records: recs, cheerios: che, supers: sup, race: rac, swaps: swp, lineup: lup, collapse: col, rosters: ros, trades: trd, seasons: {} });
   await loadSeason();
   render();
 }

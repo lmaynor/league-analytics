@@ -18,7 +18,7 @@ function cats() {
 }
 
 function teamsTab() {
-  $("#view").innerHTML = subnav("teams", [["categories", "Categories"], ["cheerios", "Red Cheerios"], ["trades", "Trade Analyzer"]]);
+  $("#view").innerHTML = subnav("teams", [["categories", "Categories"], ["cheerios", "Red Cheerios"], ["trades", "Trade Machine"]]);
   ({ categories: cats, cheerios, trades }[subTab("teams", "categories")] || cats)();
 }
 TABS.teams = teamsTab;
