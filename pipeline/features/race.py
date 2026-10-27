@@ -11,7 +11,9 @@ import json
 
 import numpy as np
 
-from matchups import CURRENT
+from cats import RATIO
+from features.cheerios import ACTIVE_SLOTS, load_days
+from matchups import CURRENT, cat_result, pct_value
 
 K = 5.73
 PRIOR_CATS = 27  # about three weeks of categories
@@ -36,7 +38,7 @@ def places(pos):
     return [int(v) for v in out]
 
 
-def build_season(season, data, rows, teams, league, prior_by_owner, live):
+def build_season(season, data, rows, teams, league, prior_by_owner, live, days=None):
     sched = regular_schedule(league)
     tids = sorted(teams)
     idx = {t: i for i, t in enumerate(tids)}
@@ -101,11 +103,45 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live):
             trail[t].append(round(float((res["pos"][:, idx[t]] == T - 1).mean()), 4))
             expect[t].append(places(res["pos"])[idx[t]])
         labels.append(w)
-    if live_p:
+    if live_mp is not None:  # live week exists; its odds may be empty while hidden, the strength model then stands in
+        # one point per scoring day of the live week, then the live odds on the last day (matches the Scoreboard)
+        live_rows = [r for r in rows if r["regular"] and r["live"]]
+        STATS = [0, 1, 2, 3, 6, 11, 13, 14, 15, 16, 17]
+        cids = [c["id"] for c in data["cats"]]
+        cw, cn = {}, {}
+        for r in done:
+            if r["mp"] >= live_mp: continue
+            for t, w, l in ((r["home"], r["hw"], r["aw"]), (r["away"], r["aw"], r["hw"])):
+                cw[t] = cw.get(t, 0) + w + 0.5 * r["t"]; cn[t] = cn.get(t, 0) + w + l + r["t"]
+        strength = {t: (cw.get(t, 0) + 13.5) / (cn.get(t, 0) + 27) for t in tids}
+        def partial(t, sp0, d):
+            tot = dict.fromkeys(STATS, 0.0)
+            for sp in range(sp0, d + 1):
+                for row in (days or {}).get(sp, {}).get(str(t), []):
+                    if row[3] in ACTIVE_SLOTS and row[4] and row[5]:
+                        for k in STATS: tot[k] += row[5][str(k)]
+            return {k: tot[k] for k in STATS}
+        if days and live_rows:
+            sp0 = min(r["sp0"] for r in live_rows)
+            last_day = min(max(days), max(r["sp1"] for r in live_rows))
+            for d in range(sp0, last_day):
+                probs = {}
+                for r in live_rows:
+                    h, a = r["home"], r["away"]
+                    th, ta = partial(h, sp0, d), partial(a, sp0, d)
+                    res_cats = [cat_result(pct_value(th, c) if c in RATIO else th[c], pct_value(ta, c) if c in RATIO else ta[c], c) for c in cids]
+                    lead = (sum(1 for v in res_cats if v == 1) - sum(1 for v in res_cats if v == -1) + len(cids)) / (2 * len(cids))
+                    strength_p = 1 / (1 + np.exp(-K * (strength[h] - strength[a])))
+                    probs[(r["mp"], h)] = 0.5 * strength_p + 0.5 * lead  # a simple blend: this week's category lead and the strength model
+                day_now = simulate(live_mp - 1, probs, TRAIL_SIMS)
+                for t in tids:
+                    trail[t].append(round(float((day_now["pos"][:, idx[t]] == T - 1).mean()), 4))
+                    expect[t].append(places(day_now["pos"])[idx[t]])
+                labels.append(f"d{d}")
         for t in tids:
             trail[t].append(round(float((now["pos"][:, idx[t]] == T - 1).mean()), 4))
             expect[t].append(places(now["pos"])[idx[t]])
-        labels.append("live")
+        labels.append(f"d{max(days)}" if days else "live")
 
     seed_of = {s["id"]: s["seed"] for s in data["standings"]}
     standing = {t: [0, 0, 0] for t in tids}  # the live week as it stands right now
@@ -148,5 +184,5 @@ def build(per_season, raw, live):
         prior = {}
         if season - 1 in per_season:
             prior = {s["owner"]: s["cat_pct"] for s in per_season[season - 1][0]["standings"]}
-        seasons[str(season)] = build_season(season, data, rows, teams, league, prior, live)
+        seasons[str(season)] = build_season(season, data, rows, teams, league, prior, live, load_days(raw, season) if season == CURRENT else None)
     return {"seasons": seasons, "k": K}

@@ -12,7 +12,7 @@ function spark(trail) {
 
 /* Prediction-market style chart: one line per team for its chance of finishing last, week by week.
    Colors are stable per team (ordered by id) so they match between the legend and the lines. */
-const lbl = (l) => (l === 0 ? "Start" : l === "live" ? "Live" : `Wk ${l}`);
+const lbl = (l) => (l === 0 ? "Start" : l === "live" ? "Live" : typeof l === "string" && l[0] === "d" ? `Day ${l.slice(1)}` : `Wk ${l}`);
 
 function drawMarket(d) {
   const box = $("#market");
