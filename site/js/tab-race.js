@@ -40,7 +40,7 @@ function drawMarket(d) {
   box.querySelectorAll(".mk-mode button").forEach((b) => (b.onclick = () => {
     S.raceMode = b.dataset.mode;
     const h = document.querySelector(".mk-title");
-    if (h) h.textContent = S.raceMode === "finish" ? "Most Likely Final Position" : "Odds of Finishing Last";
+    if (h) h.textContent = S.raceMode === "finish" ? "Projected Final Position" : "Odds of Finishing Last";
     drawMarket(d);
   }));
   const plot = box.querySelector(".mk-plot"), svg = box.querySelector("#mk-svg");
@@ -94,7 +94,7 @@ function race() {
   const rec = (r) => `${r[0]}-${r[1]}${r[2] ? `-${r[2]}` : ""}`;
   const finish = (t) => (t.rank_p10 === t.rank_p90 ? ordinal(t.rank_med) : `${ordinal(t.rank_p10)} to ${ordinal(t.rank_p90)}`);
   panel().innerHTML = `<h1>${d.season} Race for Last</h1>
-    <h2 class="mk-title">${S.raceMode === "finish" ? "Most Likely Final Position" : "Odds of Finishing Last"}</h2>
+    <h2 class="mk-title">${S.raceMode === "finish" ? "Projected Final Position" : "Odds of Finishing Last"}</h2>
     <div class="sub">${d.complete ? "Final standings. Lines show how each team's odds moved week by week." : `The rest of the regular season, simulated 10,000 times from each team's category strength and the real schedule. ${d.live ? "This week's matchups use the live odds. " : ""}Final Position shows each team's projected place, 1st at the top.`}</div>
     <div class="card market" id="market" style="margin-top:12px"></div>
     <div class="card tbl-wrap" style="margin-top:12px"><table class="sortable">
