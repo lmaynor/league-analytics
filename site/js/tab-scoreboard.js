@@ -114,40 +114,312 @@ function scoreboard() {
     const list = w.matchups.map((m) => ({ h: d.teams[m.home].owner_name, a: d.teams[m.away].owner_name, hw: m.hw, aw: m.aw, t: m.t }));
     body = `${tiles(list)}<div class="grid deck" id="deck" style="margin-top:12px">${w.matchups.map((m) => scoreCard(m, d, live(m))).join("")}</div>`;
   }
-  const award = S.lineup?.seasons?.[S.season]?.[String(S.week)];  // completed weeks only
-  const awardHtml = award ? `<div class="award"><span class="award-tag">Worst Healthy Starter</span><b>${esc(award.name)}</b>
-    <span class="sub">${esc(award.owner)} · ${esc(award.team)} · ${award.starts} starts · ${award.score.toFixed(1)}</span></div>` : "";
-  const drama = S.collapse?.seasons?.[S.season]?.[String(S.week)];
-  const dramaHtml = drama ? `<div class="award"><span class="award-tag">Biggest Throw</span><b>${esc(drama.team)}</b>
-    <span class="sub">${esc(drama.owner)} · had a ${Math.round(drama.peak * 100)}% chance at one point, fell ${Math.round(drama.drop * 100)} points, lost ${drama.final}–${drama.final_opp}${drama.ties ? `–${drama.ties}` : ""} to ${esc(drama.opp)}</span></div>` : "";
-  $("#view").innerHTML = `${toggle}<h1>Week ${S.week} ${full ? "Sweat Board" : "Scoreboard"}</h1>
-    <div class="sub">${isLive ? "Live snapshot as of the last refresh." : S.week === d.current_mp ? "Current week." : "Final."}</div>${awardHtml}${dramaHtml}${body}`;
+  panel().innerHTML = `${toggle}<h1>Week ${S.week} ${full ? "Sweat Board" : "Scoreboard"}</h1>
+    <div class="sub">${isLive ? "Live snapshot as of the last refresh." : S.week === d.current_mp ? "Current week." : "Final."}</div>${body}`;
   wireDeck();
 }
-TABS.scoreboard = scoreboard;
+
+function makeAwardCard({ badge, badgeClass = "", metric, title, subtitle, narrative }) {
+  return `<div class="award-card">
+    <div class="award-card-top">
+      <span class="award-badge ${badgeClass}">${badge}</span>
+      <span class="award-metric">${metric}</span>
+    </div>
+    <div class="award-card-main">
+      <div class="award-title">${esc(title)}</div>
+      <div class="award-subtitle">${esc(subtitle)}</div>
+    </div>
+    <div class="award-narrative">${narrative}</div>
+  </div>`;
+}
+
+function weeklyRecap() {
+  const d = S.seasons[S.meta.current] || D();
+  const L = S.live;
+  const weeks = d.weeks.map((w) => w.mp);
+  if (S.week == null || !weeks.includes(S.week)) {
+    const completedWeeks = d.weeks.filter((w) => !w.matchups.some((m) => m.live)).map((w) => w.mp);
+    S.week = completedWeeks.length ? completedWeeks[completedWeeks.length - 1] : (d.current_mp || weeks[weeks.length - 1]);
+  }
+  const w = d.weeks.find((x) => x.mp === S.week);
+  const isLive = !!(L?.active && L.mp === S.week);
+  const weekName = (wk) => `Week ${wk.mp}${wk.matchups[0]?.tier?.startsWith("WINNERS") ? " (Playoffs)" : ""}${wk.mp === d.current_mp ? (L?.active && L.mp === wk.mp ? " (Live)" : " (Current)") : ""}`;
+  const picker = `<label class="wksel">Week <select onchange="S.week=+this.value;weeklyRecap()" aria-label="Choose a week">${[...d.weeks].reverse().map((wk) => `<option value="${wk.mp}"${wk.mp === S.week ? " selected" : ""}>${weekName(wk)}</option>`).join("")}</select></label>`;
+
+  const currSeason = String(S.season || S.meta.current);
+  const awardObj = S.lineup?.seasons?.[currSeason]?.[String(S.week)];
+  const worst = awardObj?.worst || awardObj;
+  const mvp = awardObj?.best;
+
+  const cards = [];
+
+  // Weekly MVP: highest player score among starters
+  if (mvp) {
+    cards.push(makeAwardCard({
+      badge: "👑 Weekly MVP",
+      badgeClass: "good",
+      metric: `+${mvp.score.toFixed(1)} Rating`,
+      title: mvp.name,
+      subtitle: `${mvp.owner} · ${mvp.team}`,
+      narrative: `Started ${mvp.starts} games, setting the league high-water mark for weekly player performance.`
+    }));
+  }
+
+  // Cardboard Starter: lowest score by a healthy starter
+  if (worst) {
+    cards.push(makeAwardCard({
+      badge: "🗑️ Cardboard Starter",
+      badgeClass: "bad",
+      metric: `${worst.score.toFixed(1)} Rating`,
+      title: worst.name,
+      subtitle: `${worst.owner} · ${worst.team}`,
+      narrative: `Started ${worst.starts} healthy games and bottomed out with the lowest starter score in the league.`
+    }));
+  }
+
+  // Biggest Throw: largest win-probability drop
+  const drama = S.collapse?.seasons?.[currSeason]?.[String(S.week)];
+  if (drama) {
+    cards.push(makeAwardCard({
+      badge: "🪓 Biggest Throw",
+      badgeClass: "drama",
+      metric: `Peaked at ${Math.round(drama.peak * 100)}%`,
+      title: drama.team,
+      subtitle: `${drama.owner} vs ${drama.opp}`,
+      narrative: `Held a commanding ${Math.round(drama.peak * 100)}% win chance before choking away the lead to lose ${drama.final}–${drama.final_opp}.`
+    }));
+  }
+
+  // Bench Regret: optimal bench-to-starter swap
+  const swapsWeek = S.swaps?.weeks?.[String(S.week)] || [];
+  let bestSwap = null, swapTeam = null;
+  for (const sw of swapsWeek) {
+    const h = d.teams[sw.home], a = d.teams[sw.away];
+    for (const [list, tm] of [[sw.home_swaps, h], [sw.away_swaps, a]]) {
+      for (const s of (list || [])) {
+        if (!bestSwap || s.cats > bestSwap.cats || (s.to[0] > s.to[1] && bestSwap.to[0] <= bestSwap.to[1])) {
+          bestSwap = s;
+          swapTeam = tm;
+        }
+      }
+    }
+  }
+  if (bestSwap && swapTeam) {
+    const flipped = bestSwap.to[0] > bestSwap.to[1] && bestSwap.from[0] <= bestSwap.from[1];
+    cards.push(makeAwardCard({
+      badge: "🤦 Bench Regret",
+      badgeClass: "bad",
+      metric: flipped ? `<span class="flip">Would have flipped the matchup</span>` : `Cost ${bestSwap.cats} Cat${bestSwap.cats === 1 ? "" : "s"}`,
+      title: swapTeam.name,
+      subtitle: `${swapTeam.owner_name} · Start ${bestSwap.in} over ${bestSwap.out}`,
+      narrative: `Leaving <b>${esc(bestSwap.in)}</b> on the bench turned a ${bestSwap.to[0]}–${bestSwap.to[1]} win into a ${bestSwap.from[0]}–${bestSwap.from[1]} loss.`
+    }));
+  }
+
+  // Weekly xWin Analysis: schedule fortune and misfortune
+  const finished = w.matchups.filter((m) => m.hw + m.aw + m.t > 0);
+  if (finished.length && !isLive) {
+    const rev = Object.fromEntries(d.cats.map((c) => [c.id, c.reverse]));
+    const teamStats = {};
+    for (const m of finished) {
+      teamStats[m.home] = { won: m.hw > m.aw, score: `${m.hw}–${m.aw}${m.t ? `–${m.t}` : ""}`, stats: m.hs, team: d.teams[m.home] };
+      teamStats[m.away] = { won: m.aw > m.hw, score: `${m.aw}–${m.hw}${m.t ? `–${m.t}` : ""}`, stats: m.as, team: d.teams[m.away] };
+    }
+    const tids = Object.keys(teamStats);
+    const xWins = {};
+    for (const tid of tids) {
+      let xw = 0;
+      for (const oid of tids) {
+        if (oid === tid) continue;
+        let cw = 0, cl = 0;
+        for (const c of d.cats) {
+          const vT = teamStats[tid].stats[c.id], vO = teamStats[oid].stats[c.id];
+          if (vT == null || vO == null || vT === vO) continue;
+          if (rev[c.id] ? vT < vO : vT > vO) cw++;
+          else cl++;
+        }
+        if (cw > cl) xw += 1;
+        else if (cw === cl) xw += 0.5;
+      }
+      xWins[tid] = xw;
+    }
+
+    // Won with lowest xWin
+    const winners = tids.filter((t) => teamStats[t].won).sort((a, b) => xWins[a] - xWins[b]);
+    if (winners.length && xWins[winners[0]] <= 4.0) {
+      const lucky = teamStats[winners[0]];
+      const xwVal = xWins[winners[0]];
+      cards.push(makeAwardCard({
+        badge: "🍀 Lucky Bastard",
+        badgeClass: "lucky",
+        metric: `${xwVal.toFixed(1)}/9 xWins`,
+        title: lucky.team.name,
+        subtitle: `${lucky.team.owner_name} · Won ${lucky.score}`,
+        narrative: `Escaped with a ${lucky.score} victory despite a ${xwVal.toFixed(1)}/9 xWin performance (would have lost to ${9 - Math.floor(xwVal)} other teams).`
+      }));
+    }
+
+    // Lost with highest xWin
+    const losers = tids.filter((t) => !teamStats[t].won).sort((a, b) => xWins[b] - xWins[a]);
+    if (losers.length && xWins[losers[0]] >= 5.0) {
+      const unlucky = teamStats[losers[0]];
+      const xwVal = xWins[losers[0]];
+      cards.push(makeAwardCard({
+        badge: "⚡ Tough Luck",
+        badgeClass: "drama",
+        metric: `${xwVal.toFixed(1)}/9 xWins`,
+        title: unlucky.team.name,
+        subtitle: `${unlucky.team.owner_name} · Lost ${unlucky.score}`,
+        narrative: `Put up a dominant ${xwVal.toFixed(1)}/9 xWin performance that would have beaten ${Math.floor(xwVal)} other teams, but caught the wrong opponent.`
+      }));
+    }
+
+    // Closest and most lopsided margins
+    const sortedByMargin = [...finished].sort((a, b) => Math.abs(a.hw - a.aw) - Math.abs(b.hw - b.aw));
+    const closest = sortedByMargin[0];
+    if (closest && Math.abs(closest.hw - closest.aw) <= 1) {
+      const h = d.teams[closest.home], a = d.teams[closest.away];
+      cards.push(makeAwardCard({
+        badge: "🍿 Nailbiter",
+        badgeClass: "drama",
+        metric: "1 Cat Margin",
+        title: `${h.name} vs ${a.name}`,
+        subtitle: `Final: ${closest.hw}–${closest.aw}${closest.t ? `–${closest.t}` : ""}`,
+        narrative: "A down-to-the-wire cardiac sweat that was decided by the skin of their teeth on Sunday night."
+      }));
+    }
+
+    const biggest = sortedByMargin[sortedByMargin.length - 1];
+    if (biggest && Math.abs(biggest.hw - biggest.aw) >= 3) {
+      const winner = biggest.hw > biggest.aw ? d.teams[biggest.home] : d.teams[biggest.away];
+      const loser = biggest.hw > biggest.aw ? d.teams[biggest.away] : d.teams[biggest.home];
+      cards.push(makeAwardCard({
+        badge: "🚜 Beatdown",
+        badgeClass: "good",
+        metric: `+${Math.abs(biggest.hw - biggest.aw)} Cat Victory`,
+        title: `${winner.name} over ${loser.name}`,
+        subtitle: `Final: ${Math.max(biggest.hw, biggest.aw)}–${Math.min(biggest.hw, biggest.aw)}`,
+        narrative: "A ruthless, lopsided statement win that completely dismantled the opponent from day one."
+      }));
+    }
+  }
+
+  // ICU Ward: team with the most starter absences
+  const cheeriosWeek = S.cheerios?.seasons?.[currSeason]?.weeks?.[String(S.week)] || [];
+  let maxAbsences = 0, icuTeam = null, icuNames = [];
+  for (const ch of cheeriosWeek) {
+    const h = d.teams[ch.home], a = d.teams[ch.away];
+    for (const [side, tm] of [[ch.home_side, h], [ch.away_side, a]]) {
+      if (side && side.games > maxAbsences) {
+        maxAbsences = side.games;
+        icuTeam = tm;
+        icuNames = side.missed.map((p) => p.name);
+      }
+    }
+  }
+  if (icuTeam && maxAbsences >= 2) {
+    cards.push(makeAwardCard({
+      badge: "🩹 ICU Ward",
+      badgeClass: "bad",
+      metric: `${maxAbsences} Missed Starts`,
+      title: icuTeam.name,
+      subtitle: `${icuTeam.owner_name} · Injury Ward`,
+      narrative: `Hit hardest by the injury bug with ${maxAbsences} missed starter games (${icuNames.slice(0, 3).join(", ")}).`
+    }));
+  }
+
+  const debriefs = w.matchups.map((m) => {
+    const h = d.teams[m.home], a = d.teams[m.away];
+    const sw = swapsBlock(m, h, a, S.week);
+    const ch = cheeriosBlock(m, h, a, S.week);
+    return `<div class="card" style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:8px;border-bottom:1px solid var(--color-rule)">
+        <div><b>${esc(h.name)}</b> <span class="sub" style="display:inline">(${esc(h.owner_name)})</span> vs <b>${esc(a.name)}</b> <span class="sub" style="display:inline">(${esc(a.owner_name)})</span></div>
+        <div style="font-weight:600;font-family:var(--font-display);font-size:16px">${m.hw}–${m.aw}${m.t ? `–${m.t}` : ""}</div>
+      </div>
+      ${sw || '<div class="sub" style="margin-top:8px">No bench regrets this week.</div>'}
+      ${ch}
+    </div>`;
+  }).join("");
+
+  panel().innerHTML = `<div class="toolbar">${picker}</div>
+    <h1>Week ${S.week} Recap</h1>
+    <div class="sub">${isLive ? "In-progress week. Awards finalize when all games finish." : "Weekly awards, hindsight blunders, and category debriefs."}</div>
+    <div class="awards-grid">
+      ${cards.join("")}
+    </div>
+    <h2 style="margin-top:28px">Trades Debrief</h2>
+    ${tradesDebrief(S.week)}
+    <h2 style="margin-top:28px">Matchup Debriefs</h2>
+    ${debriefs}`;
+}
+
+function tradesDebrief(mp) {
+  const weekTrades = S.trades?.weeks?.[String(mp)] || [];
+  if (!weekTrades.length) {
+    return `<div class="card" style="margin-top:10px;padding:12px 14px;display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center">
+      <div>
+        <b>No trades completed in Week ${mp}</b>
+        <div class="sub">Simulate prospective player swaps and 9-category impact in the Trade Machine.</div>
+      </div>
+      <button class="pill" style="cursor:pointer;padding:5px 12px;font-size:12px;background:var(--color-key-face);border:1px solid var(--color-rule-2);color:var(--text)" onclick="setSub('teams','trades');go('teams')">Trade Machine →</button>
+    </div>`;
+  }
+
+  return weekTrades.map((t) => {
+    const pA = t.players_a.map((p) => p.name).join(", ");
+    const pB = t.players_b.map((p) => p.name).join(", ");
+    const winnerName = t.winner_id ? (t.winner_id === t.team_a.id ? t.team_a.name : t.team_b.name) : "Even Trade";
+    return `<div class="card" style="margin-top:10px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:8px;border-bottom:1px solid var(--color-rule)">
+        <div><b>${esc(t.team_a.name)}</b> ⇄ <b>${esc(t.team_b.name)}</b></div>
+        <span class="pill" style="font-weight:600;color:var(--color-accent-deep);background:var(--color-accent-wash)">Winner: ${esc(winnerName)} (${t.margin})</span>
+      </div>
+      <div style="margin-top:8px;display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:8px;font-size:13px">
+        <div><b>${esc(t.team_a.name)} got:</b> <span class="sub" style="display:inline">${esc(pA)}</span></div>
+        <div><b>${esc(t.team_b.name)} got:</b> <span class="sub" style="display:inline">${esc(pB)}</span></div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function matchupsTab() {
+  $("#view").innerHTML = subnav("matchups", [["scoreboard", "Scoreboard"], ["recap", "Weekly Recap"]]);
+  ({ scoreboard, recap: weeklyRecap }[subTab("matchups", "scoreboard")] || scoreboard)();
+}
+TABS.matchups = matchupsTab;
+TABS.scoreboard = () => go("matchups");
 
 /* Bench Regret: swaps that would be flipping the matchup if a benched player had started instead */
-function swapsBlock(m, h, a) {
-  const sw = S.swaps?.matchups?.find((x) => x.home === m.home);
+function swapsBlock(m, h, a, wk) {
+  const currentWeek = wk || S.week;
+  const weekList = S.swaps?.weeks?.[String(currentWeek)] || S.swaps?.matchups || [];
+  const sw = weekList.find((x) => x.home === m.home);
   if (!sw) return "";
   const rec = (r) => `${r[0]}-${r[1]}${r[2] ? `-${r[2]}` : ""}`;
-  const line = (list, t) => list.map((x) => `<div class="rl"><b>${esc(t.name)}</b>: start <b>${esc(x.in)}</b> over ${esc(x.out)} this week and it's ${rec(x.to)} instead of ${rec(x.from)}.</div>`).join("");
+  const line = (list, t) => (list || []).map((x) => {
+    const flipped = x.to[0] > x.to[1] && x.from[0] <= x.from[1];
+    return `<div class="rl"><b>${esc(t.name)}</b>: start <b>${esc(x.in)}</b> over ${esc(x.out)} this week and it's ${rec(x.to)} instead of ${rec(x.from)}.${flipped ? ' <span class="flip">Would have flipped the matchup</span>' : ""}</div>`;
+  }).join("");
   const body = line(sw.home_swaps, h) + line(sw.away_swaps, a);
   return body ? `<div class="cheerios swaps"><h4>Bench Regret</h4>${body}</div>` : "";
 }
 
-/* Red Cheerios for the week so far: who missed starts and what a healthy lineup would have meant */
-function cheeriosBlock(m, h, a) {
-  const live = S.cheerios?.seasons?.[S.meta.current]?.live?.find((x) => x.home === m.home);
-  if (!live) return "";
+/* Red Cheerios: who missed starts and what a healthy lineup would have meant */
+function cheeriosBlock(m, h, a, wk) {
+  const currSeason = String(S.season || S.meta.current);
+  const currentWeek = wk || S.week;
+  const weekMatches = S.cheerios?.seasons?.[currSeason]?.weeks?.[String(currentWeek)] || S.cheerios?.seasons?.[currSeason]?.live || [];
+  const entry = weekMatches.find((x) => x.home === m.home);
+  if (!entry) return "";
   const rec = (r) => `${r[0]}-${r[1]}${r[2] ? `-${r[2]}` : ""}`;
   const line = (side, t) => {
-    if (!side.games) return "";
+    if (!side || !side.games) return "";
     const names = side.missed.map((p) => `${esc(p.name)}${p.games > 1 ? ` (${p.games})` : ""}`).join(", ");
     const gain = side.cats_lost ? `, +${side.cats_lost} categor${side.cats_lost === 1 ? "y" : "ies"}` : "";
     return `<div class="rl"><b>${esc(t.name)}</b> missed ${side.games} starter game${side.games === 1 ? "" : "s"}: ${names}.
       Healthy: <b>${rec(side.healthy)}</b>${gain}${side.flips ? ' <span class="flip">Would have flipped the matchup</span>' : ""}</div>`;
   };
-  const body = line(live.home_side, h) + line(live.away_side, a);
-  return `<div class="cheerios"><h4>Red Cheerios, So Far This Week</h4>${body || '<div class="sub">Every starter who was supposed to play has played.</div>'}</div>`;
+  const body = line(entry.home_side, h) + line(entry.away_side, a);
+  return `<div class="cheerios"><h4>Red Cheerios, Absences</h4>${body || '<div class="sub">Every starter who was supposed to play has played.</div>'}</div>`;
 }

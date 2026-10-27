@@ -21,7 +21,7 @@ pipeline/
   cats.py           stat ids, display order, spread model
   matchups.py       shared parsing: schedule entries -> category results
   should_run.py     CI gate: only run while an NBA game is on
-  features/         standings, history, records, live, cheerios, superlatives, race, swaps
+  features/         standings, history, records, live, cheerios, superlatives, race, swaps, trades
 site/
   index.html        shell, footer "How This Works", tab bar, theme/refresh buttons
   style.css         Cobalt theme, dark theme, phone shell
@@ -33,7 +33,7 @@ config/owners.json  owner id -> first name; "same_as" merges duplicate accounts
 .github/workflows/refresh.yml
 ```
 
-Each feature writes its own file (`live.json`, `records.json`, `cheerios.json`, `superlatives.json`, `history.json`, `season_<year>.json`). One failing feature does not stop the rest.
+Each feature writes its own file (`live.json`, `records.json`, `cheerios.json`, `superlatives.json`, `history.json`, `rosters.json`, `season_<year>.json`). One failing feature does not stop the rest.
 
 ## How the numbers work
 
@@ -71,7 +71,7 @@ Each feature writes its own file (`live.json`, `records.json`, `cheerios.json`, 
 
 ## Front end notes
 
-- `TABS` registry in `core.js`; views with sub-views use `subnav()` and render into `#panel`. Hash routes: `#scoreboard`, `#standings/power`, `#history/supers`. Old links (`#sweat`, `#scores`, `#cats`, `#regret`) still resolve.
+- `TABS` registry in `core.js`; 4 top-level pillars (`matchups`, `season`, `teams`, `history`), each using `subnav()` rendering into `#panel`. Hash routes: `#matchups/scoreboard`, `#matchups/recap`, `#season/standings`, `#season/power`, `#season/projections`, `#teams/categories`, `#teams/cheerios`, `#teams/trades`, `#history/owners`, `#history/h2h`, `#history/records`, `#history/supers`. Legacy routes still resolve.
 - Scoreboard has Auto / Compact / Full detail (Auto switches to Full on the final day) and a Week dropdown for the current season's earlier weeks; past weeks show final scores.
 - Phones (<=700px): bottom tab bar, matchup tile strip + snap-scroll card deck that loops (copies of the last and first card sit at the ends and the deck jumps back once the swipe stops; deck height and the jump wait for the scroll to settle), pull to refresh, haptic ticks (Android vibrate; iOS checkbox-switch trick), safe-area padding. Installable (manifest + apple-touch-icon).
 - Light/dark theme: `data-theme` set before paint; follows the system until the user taps the toggle. Colors are tokens in `:root` and `:root[data-theme="dark"]`.

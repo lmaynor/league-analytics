@@ -2,12 +2,13 @@
 function cheerios() {
   const A = S.cheerios?.seasons || {};
   const years = Object.keys(A).sort();
-  if (!years.length) { $("#view").innerHTML = `<div class="empty"><h1>No Red Cheerios Yet</h1><p>This needs daily rosters. Run <code>pipeline/build.py --fetch</code> to pull them.</p></div>`; return; }
+  if (!years.length) { panel().innerHTML = `<div class="empty"><h1>No Red Cheerios Yet</h1><p>This needs daily rosters. Run <code>pipeline/build.py --fetch</code> to pull them.</p></div>`; return; }
+  if (S.season && A[String(S.season)]) S.regYear = String(S.season);
   if (!S.regYear || !A[S.regYear]) S.regYear = A[String(S.meta.current)] ? String(S.meta.current) : years[years.length - 1];
   const a = A[S.regYear];
   const rec = (r) => `${r[0]}-${r[1]}${r[2] ? `-${r[2]}` : ""}`;
   const seg = `<div class="toolbar"><div class="seg">${[...years].reverse().map((y) => `<button class="${y === S.regYear ? "on" : ""}" onclick="S.regYear='${y}';cheerios()">${y}</button>`).join("")}</div></div>`;
-  $("#view").innerHTML = `<h1>Red Cheerios</h1>
+  panel().innerHTML = `<h1>Red Cheerios</h1>
     <div class="sub">Starters who sat out a game their NBA team played, hurt or resting. Healthy adds each missed game's usual production back and re-scores the week against the opponent's real totals. ${a.complete ? "" : "Includes the week in progress, so it can still change."}</div>${seg}
     <div class="card tbl-wrap" style="margin-top:6px"><table class="sortable">
       <tr><th class="l">Team</th><th>Games Missed</th><th>Wins Lost</th><th>Wins Gifted</th><th>Record</th><th>Healthy</th><th class="l mm-head">Most Missed</th></tr>
@@ -25,4 +26,4 @@ function cheerios() {
       ${a.players.map((p) => `<tr><td class="l"><b>${esc(p.name)}</b></td><td class="l">${esc(p.team)}</td><td>${p.games}</td><td class="l">${p.hits.map((h) => h.lost ? `${h.cat} −${h.lost}` : h.cat).join(", ")}</td></tr>`).join("")}
     </table></div>` : ""}`;
 }
-TABS.cheerios = cheerios;
+TABS.cheerios = () => { S.sub.teams = "cheerios"; go("teams"); };

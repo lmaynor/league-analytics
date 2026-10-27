@@ -59,16 +59,33 @@ def side_swaps(tid, mine, theirs, days, row, cids):
 
 def build(per_season, raw, live):
     if CURRENT not in per_season:
-        return {"matchups": []}
+        return {"matchups": [], "weeks": {}}
     data, rows, teams = per_season[CURRENT]
     days = load_days(raw, CURRENT)
-    live_rows = [r for r in rows if r["live"]]
-    if live and live.get("active"):  # no swap hints while a matchup's lineups can still change
-        shown = {m["home"] for m in live["matchups"] if not m.get("hidden")}
-        live_rows = [r for r in live_rows if r["home"] in shown]
-    if not days or not live_rows:
-        return {"matchups": []}
+    if not days:
+        return {"matchups": [], "weeks": {}}
     cids = [c["id"] for c in data["cats"]]
-    return {"matchups": [{"home": r["home"], "away": r["away"],
-                          "home_swaps": side_swaps(r["home"], r["hs"], r["as"], days, r, cids),
-                          "away_swaps": side_swaps(r["away"], r["as"], r["hs"], days, r, cids)} for r in live_rows]}
+
+    shown_live = set()
+    if live and live.get("active"):
+        shown_live = {m["home"] for m in live["matchups"] if not m.get("hidden")}
+
+    weeks = {}
+    current_matchups = []
+    for r in rows:
+        mp = r["mp"]
+        if r["live"] and r["home"] not in shown_live:
+            continue
+        if r.get("sp0") and r.get("sp1"):
+            entry = {
+                "home": r["home"],
+                "away": r["away"],
+                "mp": mp,
+                "home_swaps": side_swaps(r["home"], r["hs"], r["as"], days, r, cids),
+                "away_swaps": side_swaps(r["away"], r["as"], r["hs"], days, r, cids),
+            }
+            weeks.setdefault(str(mp), []).append(entry)
+            if r["live"]:
+                current_matchups.append(entry)
+
+    return {"matchups": current_matchups, "weeks": weeks}

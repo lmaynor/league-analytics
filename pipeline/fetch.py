@@ -156,6 +156,9 @@ def fetch_season(c, season):
         sp = league.get("scoringPeriodId")
         _write(d / "roster.json", compact_roster(c.league(season, ["mRoster"], scoring_period=sp), season))
         _write(d / "proschedule.json", compact_schedule(c.pro_schedule(season)))
+        txs = c.league(season, ["mTransactions2"])
+        if txs and "transactions" in txs:
+            _write(d / "transactions.json", txs["transactions"])
     return True
 
 

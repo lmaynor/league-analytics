@@ -53,9 +53,15 @@ def build_season(season, data, rows, teams, days, games):
         if not cands:
             continue
         score, pid, v = min(cands, key=lambda c: c[0])
+        best_score, best_pid, best_v = max(cands, key=lambda c: c[0])
         t = teams[int(v["tid"])]
-        out[str(mp)] = {"name": v["name"], "owner": t["owner_name"], "team": t["name"],
-                        "starts": v["starts"], "score": round(score, 1)}
+        bt = teams[int(best_v["tid"])]
+        out[str(mp)] = {
+            "name": v["name"], "owner": t["owner_name"], "team": t["name"],
+            "starts": v["starts"], "score": round(score, 1),
+            "worst": {"name": v["name"], "owner": t["owner_name"], "team": t["name"], "starts": v["starts"], "score": round(score, 1)},
+            "best": {"name": best_v["name"], "owner": bt["owner_name"], "team": bt["name"], "starts": best_v["starts"], "score": round(best_score, 1)},
+        }
     return out
 
 

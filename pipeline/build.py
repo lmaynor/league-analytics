@@ -12,7 +12,7 @@ import sys
 import traceback
 
 from espn_client import ROOT
-from features import cheerios, collapse, history, live, lineup, race, records, standings, superlatives, swaps
+from features import cheerios, collapse, history, lineup, live, race, records, standings, superlatives, swaps, trades
 from matchups import CURRENT
 
 RAW = ROOT / "data" / "raw"
@@ -118,6 +118,7 @@ def main():
     written += run("swaps", only, lambda: {"swaps.json": swaps.build(per_season, RAW, live_out)})
     written += run("race", only, lambda: {"race.json": race.build(per_season, RAW, live_out)})
     written += run("superlatives", only, lambda: {"superlatives.json": superlatives.build(per_season, RAW)})
+    written += run("trades", only, lambda: trades.build(CURRENT, RAW))
     stamp_assets()
     write("meta.json", {"current": CURRENT, "seasons": sorted(per_season), "league_name": league_name()})
     print(f"wrote {len(written) + 1} files to {OUT}")
