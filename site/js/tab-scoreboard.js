@@ -138,8 +138,7 @@ function weeklyRecap() {
   const L = S.live;
   const weeks = d.weeks.map((w) => w.mp);
   if (S.week == null || !weeks.includes(S.week)) {
-    const completedWeeks = d.weeks.filter((w) => !w.matchups.some((m) => m.live)).map((w) => w.mp);
-    S.week = completedWeeks.length ? completedWeeks[completedWeeks.length - 1] : (d.current_mp || weeks[weeks.length - 1]);
+    S.week = d.current_mp && weeks.includes(d.current_mp) ? d.current_mp : weeks[weeks.length - 1];
   }
   const w = d.weeks.find((x) => x.mp === S.week);
   const isLive = !!(L?.active && L.mp === S.week);
@@ -328,6 +327,22 @@ function weeklyRecap() {
     }));
   }
 
+  // Completed Trades Award
+  const weekTrades = S.trades?.weeks?.[String(S.week)] || [];
+  for (const tr of weekTrades) {
+    const winnerName = tr.winner_id ? (tr.winner_id === tr.team_a.id ? tr.team_a.name : tr.team_b.name) : null;
+    const pA = tr.players_a.map((p) => p.name).join(", ");
+    const pB = tr.players_b.map((p) => p.name).join(", ");
+    cards.push(makeAwardCard({
+      badge: "🤝 Blockbuster Trade",
+      badgeClass: "good",
+      metric: `${tr.players_a.length}-for-${tr.players_b.length} Deal`,
+      title: `${tr.team_a.name} ⇄ ${tr.team_b.name}`,
+      subtitle: `${tr.team_a.owner || tr.team_a.name} & ${tr.team_b.owner || tr.team_b.name}`,
+      narrative: `A blockbuster trade shook up the league: <b>${esc(tr.team_a.name)}</b> received ${esc(pA)}, while <b>${esc(tr.team_b.name)}</b> acquired ${esc(pB)}. Projected edge: <b>${winnerName ? esc(winnerName) : "Even"}</b> (${tr.margin}).`
+    }));
+  }
+
   const debriefs = w.matchups.map((m) => {
     const h = d.teams[m.home], a = d.teams[m.away];
     const sw = swapsBlock(m, h, a, S.week);
@@ -371,13 +386,16 @@ function tradesDebrief(mp) {
     const pB = t.players_b.map((p) => p.name).join(", ");
     const winnerName = t.winner_id ? (t.winner_id === t.team_a.id ? t.team_a.name : t.team_b.name) : "Even Trade";
     return `<div class="card" style="margin-top:10px">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:8px;border-bottom:1px solid var(--color-rule)">
-        <div><b>${esc(t.team_a.name)}</b> ⇄ <b>${esc(t.team_b.name)}</b></div>
-        <span class="pill" style="font-weight:600;color:var(--color-accent-deep);background:var(--color-accent-wash)">Winner: ${esc(winnerName)} (${t.margin})</span>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:8px;border-bottom:1px solid var(--color-rule);flex-wrap:wrap;gap:8px">
+        <div><b>${esc(t.team_a.name)}</b> <span class="sub" style="display:inline">(${esc(t.team_a.owner || "")})</span> ⇄ <b>${esc(t.team_b.name)}</b> <span class="sub" style="display:inline">(${esc(t.team_b.owner || "")})</span></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="pill" style="font-weight:600;color:var(--color-accent-deep);background:var(--color-accent-wash)">Winner: ${esc(winnerName)} (${t.margin})</span>
+          <button class="pill" style="cursor:pointer;padding:3px 8px;font-size:11.5px;background:var(--color-key-face);border:1px solid var(--color-rule-2);color:var(--text)" onclick="setSub('teams','trades');go('teams')">Trade Machine →</button>
+        </div>
       </div>
-      <div style="margin-top:8px;display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:8px;font-size:13px">
-        <div><b>${esc(t.team_a.name)} got:</b> <span class="sub" style="display:inline">${esc(pA)}</span></div>
-        <div><b>${esc(t.team_b.name)} got:</b> <span class="sub" style="display:inline">${esc(pB)}</span></div>
+      <div style="margin-top:8px;display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:8px;font-size:13px">
+        <div><b>${esc(t.team_a.name)} acquired:</b> <div class="sub" style="margin-top:2px">${esc(pA)}</div></div>
+        <div><b>${esc(t.team_b.name)} acquired:</b> <div class="sub" style="margin-top:2px">${esc(pB)}</div></div>
       </div>
     </div>`;
   }).join("");

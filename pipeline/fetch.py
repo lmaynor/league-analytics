@@ -159,6 +159,9 @@ def fetch_season(c, season):
         txs = c.league(season, ["mTransactions2"])
         if txs and "transactions" in txs:
             _write(d / "transactions.json", txs["transactions"])
+        comm = c.league(season, ["kona_league_communication"])
+        if comm and "communication" in comm:
+            _write(d / "communication.json", comm["communication"])
     return True
 
 

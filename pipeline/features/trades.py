@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 from matchups import calendar_weeks
+from espn_client import ROOT
 
 # ESPN stat IDs:
 # 0: PTS, 1: BLK, 2: STL, 3: AST, 6: REB, 11: TO, 13: FGM, 14: FGA, 15: FTM, 16: FTA, 17: 3PM, 19: FG%, 20: FT%
@@ -115,14 +116,19 @@ def build(season, raw_dir):
 
     # Parse league team info for name lookups
     league_path = raw_dir / str(season) / "league.json"
+    owners_path = ROOT / "config" / "owners.json"
+    owners_cfg = json.loads(owners_path.read_text(encoding="utf-8")) if owners_path.exists() else {}
     teams_meta = {}
     if league_path.exists():
         lg = json.loads(league_path.read_text(encoding="utf-8"))
         for t in lg.get("teams", []):
+            owner_hash = t.get("primaryOwner") or (t.get("owners") or [None])[0]
+            owner_name = owners_cfg.get(owner_hash, {}).get("name", "")
             teams_meta[t["id"]] = {
                 "id": t["id"],
                 "name": t.get("name", f"Team {t['id']}"),
                 "abbrev": t.get("abbrev", ""),
+                "owner": owner_name,
             }
 
     # Matchup week derivation
@@ -133,53 +139,109 @@ def build(season, raw_dir):
                 return i
         return 1
 
-    # Check for executed trades in transactions
+    # Check for executed trades in transactions and communication topics
     tx_path = raw_dir / str(season) / "transactions.json"
+    comm_path = raw_dir / str(season) / "communication.json"
+    txs = json.loads(tx_path.read_text(encoding="utf-8")) if tx_path.exists() else []
+    comm = json.loads(comm_path.read_text(encoding="utf-8")) if comm_path.exists() else {}
+
     completed_trades = []
     weeks_trades = {}
+    seen_trade_ids = set()
 
-    if tx_path.exists():
-        txs = json.loads(tx_path.read_text(encoding="utf-8"))
-        for t in txs:
-            # Match executed trades
-            status = str(t.get("status", "")).upper()
-            items = t.get("items") or []
-            trade_items = [it for it in items if isinstance(it, dict) and it.get("type") == "TRADE"]
-            if trade_items and status in ("EXECUTED", "COMPLETE"):
-                sp = t.get("scoringPeriodId", 1)
-                mp = get_mp(sp)
-                team_ids = list(set([it["fromTeamId"] for it in trade_items] + [it["toTeamId"] for it in trade_items]))
-                if len(team_ids) == 2:
-                    t_a, t_b = team_ids[0], team_ids[1]
-                    to_a = [player_map.get(it["playerId"]) for it in trade_items if it["toTeamId"] == t_a and player_map.get(it["playerId"])]
-                    to_b = [player_map.get(it["playerId"]) for it in trade_items if it["toTeamId"] == t_b and player_map.get(it["playerId"])]
-                    score_a, score_b, deltas = evaluate_trade(to_a, to_b)
+    # 1. Parse executed trades from ESPN communication topics (where executed trades are broadcast)
+    for top in comm.get("topics", []):
+        trade_msgs = [m for m in top.get("messages", []) if m.get("messageTypeId") == 244]
+        if trade_msgs:
+            top_id = top.get("id")
+            if top_id in seen_trade_ids:
+                continue
+            seen_trade_ids.add(top_id)
+            top_date = top.get("date", 0)
+            matching_tx = next((t for t in txs if abs(t.get("proposedDate", 0) - top_date) < 120000), None)
+            sp = matching_tx.get("scoringPeriodId", 1) if matching_tx else 1
+            mp = get_mp(sp)
+            from_teams = {m["from"] for m in trade_msgs if m.get("from")}
+            to_teams = {m["to"] for m in trade_msgs if m.get("to")}
+            team_ids = sorted(from_teams | to_teams)
+            if len(team_ids) == 2:
+                t_a, t_b = team_ids[0], team_ids[1]
+                to_a = [player_map.get(m["targetId"]) for m in trade_msgs if m.get("to") == t_a and player_map.get(m["targetId"])]
+                to_b = [player_map.get(m["targetId"]) for m in trade_msgs if m.get("to") == t_b and player_map.get(m["targetId"])]
+                score_a, score_b, deltas = evaluate_trade(to_a, to_b)
 
-                    if score_a > score_b:
-                        winner_id = t_a
-                        margin_str = f"+{int(score_a - score_b)} categories ({int(score_a)}–{int(score_b)})"
-                    elif score_b > score_a:
-                        winner_id = t_b
-                        margin_str = f"+{int(score_b - score_a)} categories ({int(score_b)}–{int(score_a)})"
-                    else:
-                        winner_id = None
-                        margin_str = f"Even trade ({score_a}–{score_b})"
+                if score_a > score_b:
+                    winner_id = t_a
+                    margin_str = f"+{int(score_a - score_b)} categories ({int(score_a)}–{int(score_b)})"
+                elif score_b > score_a:
+                    winner_id = t_b
+                    margin_str = f"+{int(score_b - score_a)} categories ({int(score_b)}–{int(score_a)})"
+                else:
+                    winner_id = None
+                    margin_str = f"Even trade ({score_a}–{score_b})"
 
-                    entry = {
-                        "id": t.get("id"),
-                        "mp": mp,
-                        "team_a": teams_meta.get(t_a, {"id": t_a, "name": f"Team {t_a}"}),
-                        "team_b": teams_meta.get(t_b, {"id": t_b, "name": f"Team {t_b}"}),
-                        "players_a": to_a,
-                        "players_b": to_b,
-                        "score_a": score_a,
-                        "score_b": score_b,
-                        "winner_id": winner_id,
-                        "margin": margin_str,
-                        "deltas": deltas,
-                    }
-                    completed_trades.append(entry)
-                    weeks_trades.setdefault(str(mp), []).append(entry)
+                entry = {
+                    "id": top_id,
+                    "mp": mp,
+                    "date": top_date,
+                    "team_a": teams_meta.get(t_a, {"id": t_a, "name": f"Team {t_a}", "owner": ""}),
+                    "team_b": teams_meta.get(t_b, {"id": t_b, "name": f"Team {t_b}", "owner": ""}),
+                    "players_a": to_a,
+                    "players_b": to_b,
+                    "score_a": score_a,
+                    "score_b": score_b,
+                    "winner_id": winner_id,
+                    "margin": margin_str,
+                    "deltas": deltas,
+                }
+                completed_trades.append(entry)
+                weeks_trades.setdefault(str(mp), []).append(entry)
+
+    # 2. Check for executed trades in transactions (fallback)
+    for t in txs:
+        status = str(t.get("status", "")).upper()
+        items = t.get("items") or []
+        trade_items = [it for it in items if isinstance(it, dict) and it.get("type") == "TRADE"]
+        if trade_items and status in ("EXECUTED", "COMPLETE"):
+            t_id = t.get("id")
+            if t_id in seen_trade_ids:
+                continue
+            seen_trade_ids.add(t_id)
+            sp = t.get("scoringPeriodId", 1)
+            mp = get_mp(sp)
+            team_ids = list(set([it["fromTeamId"] for it in trade_items] + [it["toTeamId"] for it in trade_items]))
+            if len(team_ids) == 2:
+                t_a, t_b = team_ids[0], team_ids[1]
+                to_a = [player_map.get(it["playerId"]) for it in trade_items if it["toTeamId"] == t_a and player_map.get(it["playerId"])]
+                to_b = [player_map.get(it["playerId"]) for it in trade_items if it["toTeamId"] == t_b and player_map.get(it["playerId"])]
+                score_a, score_b, deltas = evaluate_trade(to_a, to_b)
+
+                if score_a > score_b:
+                    winner_id = t_a
+                    margin_str = f"+{int(score_a - score_b)} categories ({int(score_a)}–{int(score_b)})"
+                elif score_b > score_a:
+                    winner_id = t_b
+                    margin_str = f"+{int(score_b - score_a)} categories ({int(score_b)}–{int(score_a)})"
+                else:
+                    winner_id = None
+                    margin_str = f"Even trade ({score_a}–{score_b})"
+
+                entry = {
+                    "id": t_id,
+                    "mp": mp,
+                    "date": t.get("proposedDate"),
+                    "team_a": teams_meta.get(t_a, {"id": t_a, "name": f"Team {t_a}", "owner": ""}),
+                    "team_b": teams_meta.get(t_b, {"id": t_b, "name": f"Team {t_b}", "owner": ""}),
+                    "players_a": to_a,
+                    "players_b": to_b,
+                    "score_a": score_a,
+                    "score_b": score_b,
+                    "winner_id": winner_id,
+                    "margin": margin_str,
+                    "deltas": deltas,
+                }
+                completed_trades.append(entry)
+                weeks_trades.setdefault(str(mp), []).append(entry)
 
     trades_payload = {
         "season": season,
