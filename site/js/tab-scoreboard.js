@@ -330,16 +330,20 @@ function weeklyRecap() {
   // Completed Trades Award
   const weekTrades = S.trades?.weeks?.[String(S.week)] || [];
   for (const tr of weekTrades) {
-    const winnerName = tr.winner_id ? (tr.winner_id === tr.team_a.id ? tr.team_a.name : tr.team_b.name) : null;
+    const v = tr.verdict || {};
+    const cls = v.classification || {};
+    const ga = tr.grade_a || {};
+    const gb = tr.grade_b || {};
+    const winnerName = v.winner_name || (tr.winner_id ? (tr.winner_id === tr.team_a.id ? tr.team_a.name : tr.team_b.name) : "Even");
     const pA = tr.players_a.map((p) => p.name).join(", ");
     const pB = tr.players_b.map((p) => p.name).join(", ");
     cards.push(makeAwardCard({
-      badge: "🤝 Blockbuster Trade",
-      badgeClass: "good",
-      metric: `${tr.players_a.length}-for-${tr.players_b.length} Deal`,
+      badge: cls.name ? `🤝 ${cls.name}` : "🤝 Blockbuster Trade",
+      badgeClass: v.outcome === "clear_win" ? "drama" : v.outcome === "win_win" ? "good" : "drama",
+      metric: `${ga.grade || "C"} vs ${gb.grade || "C"}`,
       title: `${tr.team_a.name} ⇄ ${tr.team_b.name}`,
-      subtitle: `${tr.team_a.owner || tr.team_a.name} & ${tr.team_b.owner || tr.team_b.name}`,
-      narrative: `A blockbuster trade shook up the league: <b>${esc(tr.team_a.name)}</b> received ${esc(pA)}, while <b>${esc(tr.team_b.name)}</b> acquired ${esc(pB)}. Projected edge: <b>${winnerName ? esc(winnerName) : "Even"}</b> (${tr.margin}).`
+      subtitle: cls.headline || `${tr.team_a.owner || tr.team_a.name} & ${tr.team_b.owner || tr.team_b.name}`,
+      narrative: `${cls.roast ? `${esc(cls.roast)} ` : ""}Verdict: <b>${esc(v.outcome_label || "Fair Trade")}</b> (${esc(v.margin_str || tr.margin)}).`
     }));
   }
 
@@ -381,21 +385,80 @@ function tradesDebrief(mp) {
     </div>`;
   }
 
+  const gradeClass = (g) => {
+    if (!g) return "grade-c";
+    const letter = g.charAt(0).toLowerCase();
+    return `grade-${letter}`;
+  };
+
   return weekTrades.map((t) => {
+    const v = t.verdict || {};
+    const cls = v.classification || {};
+    const ga = t.grade_a || {};
+    const gb = t.grade_b || {};
     const pA = t.players_a.map((p) => p.name).join(", ");
     const pB = t.players_b.map((p) => p.name).join(", ");
-    const winnerName = t.winner_id ? (t.winner_id === t.team_a.id ? t.team_a.name : t.team_b.name) : "Even Trade";
-    return `<div class="card" style="margin-top:10px">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:8px;border-bottom:1px solid var(--color-rule);flex-wrap:wrap;gap:8px">
-        <div><b>${esc(t.team_a.name)}</b> <span class="sub" style="display:inline">(${esc(t.team_a.owner || "")})</span> ⇄ <b>${esc(t.team_b.name)}</b> <span class="sub" style="display:inline">(${esc(t.team_b.owner || "")})</span></div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <span class="pill" style="font-weight:600;color:var(--color-accent-deep);background:var(--color-accent-wash)">Winner: ${esc(winnerName)} (${t.margin})</span>
-          <button class="pill" style="cursor:pointer;padding:3px 8px;font-size:11.5px;background:var(--color-key-face);border:1px solid var(--color-rule-2);color:var(--text)" onclick="setSub('teams','trades');go('teams')">Trade Machine →</button>
+    const pAIds = JSON.stringify(t.players_a.map((p) => p.id));
+    const pBIds = JSON.stringify(t.players_b.map((p) => p.id));
+    const outcome = v.outcome || "fair_trade";
+    const outcomeLabel = v.outcome_label || "Fair Trade";
+
+    const tagsHtml = (cls.tags || []).map((tag) => `<span class="pill">${esc(tag)}</span>`).join(" ");
+
+    return `<div class="trade-receipt">
+      <div class="receipt-top">
+        <div class="receipt-meta">
+          <span class="outcome-pill ${outcome}">${esc(outcomeLabel)}</span>
+          <b>${esc(cls.name || "Trade Receipt")}</b>
+          ${tagsHtml}
         </div>
+        <button class="pill" style="cursor:pointer;padding:4px 10px;font-size:12px;background:var(--color-key-face);border:1px solid var(--color-rule-2);color:var(--text)" onclick='loadTradeInMachine(${t.team_a.id}, ${t.team_b.id}, ${pAIds}, ${pBIds})'>Load in Trade Machine →</button>
       </div>
-      <div style="margin-top:8px;display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:8px;font-size:13px">
-        <div><b>${esc(t.team_a.name)} acquired:</b> <div class="sub" style="margin-top:2px">${esc(pA)}</div></div>
-        <div><b>${esc(t.team_b.name)} acquired:</b> <div class="sub" style="margin-top:2px">${esc(pB)}</div></div>
+
+      ${cls.roast ? `
+        <div class="receipt-quote-box">
+          <div class="receipt-headline">${esc(cls.headline || "")}</div>
+          <div class="receipt-roast">${esc(cls.roast)}</div>
+        </div>` : ""}
+
+      <div class="receipt-sides">
+        <div class="receipt-mgr-card">
+          <div class="receipt-mgr-head">
+            <div class="receipt-mgr-info">
+              <span class="receipt-mgr-name">${esc(t.team_a.name)}</span>
+              <span class="receipt-mgr-owner">${esc(t.team_a.owner || "")}</span>
+            </div>
+            <span class="grade-badge ${gradeClass(ga.grade)}">${ga.grade || "C"}</span>
+          </div>
+          <div class="receipt-players-box">
+            <b>Acquired:</b> ${esc(pA)}
+          </div>
+          <div style="font-size:12px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-top:2px">
+            <span>Weekly Net: <b>${ga.score !== undefined ? (ga.score > 0 ? `+${ga.score.toFixed(2)}` : ga.score.toFixed(2)) : "0.00"} cats/wk</b></span>
+            <span>Confidence: <b>${ga.confidence || "High"}</b></span>
+          </div>
+          ${ga.fit_benefit ? `<div style="font-size:11.5px;color:var(--color-ink-2);margin-top:2px"><b>Fit:</b> ${esc(ga.fit_benefit)}</div>` : ""}
+          ${ga.cost_risk ? `<div style="font-size:11.5px;color:var(--muted)"><b>Risk:</b> ${esc(ga.cost_risk)}</div>` : ""}
+        </div>
+
+        <div class="receipt-mgr-card">
+          <div class="receipt-mgr-head">
+            <div class="receipt-mgr-info">
+              <span class="receipt-mgr-name">${esc(t.team_b.name)}</span>
+              <span class="receipt-mgr-owner">${esc(t.team_b.owner || "")}</span>
+            </div>
+            <span class="grade-badge ${gradeClass(gb.grade)}">${gb.grade || "C"}</span>
+          </div>
+          <div class="receipt-players-box">
+            <b>Acquired:</b> ${esc(pB)}
+          </div>
+          <div style="font-size:12px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-top:2px">
+            <span>Weekly Net: <b>${gb.score !== undefined ? (gb.score > 0 ? `+${gb.score.toFixed(2)}` : gb.score.toFixed(2)) : "0.00"} cats/wk</b></span>
+            <span>Confidence: <b>${gb.confidence || "High"}</b></span>
+          </div>
+          ${gb.fit_benefit ? `<div style="font-size:11.5px;color:var(--color-ink-2);margin-top:2px"><b>Fit:</b> ${esc(gb.fit_benefit)}</div>` : ""}
+          ${gb.cost_risk ? `<div style="font-size:11.5px;color:var(--muted)"><b>Risk:</b> ${esc(gb.cost_risk)}</div>` : ""}
+        </div>
       </div>
     </div>`;
   }).join("");

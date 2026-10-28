@@ -21,6 +21,11 @@ async function init() {
     owners: ["history", "owners"], records: ["history", "records"], supers: ["history", "supers"], h2h: ["history", "h2h"],
   };
   let [h0, h1] = location.hash.slice(1).split("/");
+  if (h1 && h1.includes("?")) {
+    const qParts = h1.split("?");
+    h1 = qParts[0];
+    S.initQuery = new URLSearchParams(qParts[1]);
+  }
   if (alias[h0]) {
     const [tgtTab, tgtSub] = alias[h0];
     h0 = tgtTab;

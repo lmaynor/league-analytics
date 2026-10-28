@@ -4,6 +4,7 @@ from pathlib import Path
 
 from matchups import calendar_weeks
 from espn_client import ROOT
+from trade_analyzer import analyze_trade, compute_replacement_player, STAT_KEYS
 
 # ESPN stat IDs:
 # 0: PTS, 1: BLK, 2: STL, 3: AST, 6: REB, 11: TO, 13: FGM, 14: FGA, 15: FTM, 16: FTA, 17: 3PM, 19: FG%, 20: FT%
@@ -131,6 +132,70 @@ def build(season, raw_dir):
                 "owner": owner_name,
             }
 
+    # Compute league-wide replacement level and team strengths for simulations
+    def compute_team_strength(roster_players):
+        top10 = roster_players[:10] if roster_players else []
+        s = {}
+        for cid in [0, 6, 3, 2, 1, 17, 11]:
+            k = STAT_KEYS[cid]
+            s[str(cid)] = round(sum(p.get(k, 0.0) for p in top10) * GP_WEEK, 1)
+        fgm = sum(p.get("fgm", 0.0) for p in top10)
+        fga = sum(p.get("fga", 0.0) for p in top10)
+        s["19"] = round(fgm / max(1.0, fga), 3) if fga else 0.465
+        ftm = sum(p.get("ftm", 0.0) for p in top10)
+        fta = sum(p.get("fta", 0.0) for p in top10)
+        s["20"] = round(ftm / max(1.0, fta), 3) if fta else 0.770
+        return s
+
+    rep_player = compute_replacement_player(rosters_out)
+
+    all_teams = []
+    for tid_str, players in rosters_out.items():
+        tid = int(tid_str)
+        meta = teams_meta.get(tid, {"id": tid, "name": f"Team {tid}", "owner": ""})
+        all_teams.append({
+            "id": tid,
+            "name": meta["name"],
+            "owner": meta.get("owner", ""),
+            "roster": players,
+            "strength": compute_team_strength(players),
+        })
+
+    def make_trade_entry(trade_id, mp, date, t_a, t_b, to_a, to_b):
+        team_a_meta = teams_meta.get(t_a, {"id": t_a, "name": f"Team {t_a}", "owner": ""})
+        team_b_meta = teams_meta.get(t_b, {"id": t_b, "name": f"Team {t_b}", "owner": ""})
+        team_a_obj = next((t for t in all_teams if t["id"] == t_a), {
+            "id": t_a, "name": team_a_meta["name"], "owner": team_a_meta.get("owner", ""),
+            "roster": rosters_out.get(str(t_a), []), "strength": compute_team_strength(rosters_out.get(str(t_a), []))
+        })
+        team_b_obj = next((t for t in all_teams if t["id"] == t_b), {
+            "id": t_b, "name": team_b_meta["name"], "owner": team_b_meta.get("owner", ""),
+            "roster": rosters_out.get(str(t_b), []), "strength": compute_team_strength(rosters_out.get(str(t_b), []))
+        })
+
+        analysis = analyze_trade(team_a_obj, team_b_obj, to_a, to_b, all_teams, rep_player)
+
+        return {
+            "id": trade_id,
+            "mp": mp,
+            "date": date,
+            "team_a": team_a_meta,
+            "team_b": team_b_meta,
+            "players_a": to_a,
+            "players_b": to_b,
+            "score_a": analysis["package_comparison"]["score_a"],
+            "score_b": analysis["package_comparison"]["score_b"],
+            "winner_id": analysis["verdict"]["winner_id"],
+            "margin": analysis["verdict"]["margin_str"],
+            "deltas": analysis["deltas_a"],
+            "deltas_b": analysis["deltas_b"],
+            "verdict": analysis["verdict"],
+            "grade_a": analysis["grade_a"],
+            "grade_b": analysis["grade_b"],
+            "roster_adjustment": analysis["roster_adjustment"],
+            "assumptions": analysis["assumptions"],
+        }
+
     # Matchup week derivation
     weeks = calendar_weeks(season)
     def get_mp(sp):
@@ -168,32 +233,7 @@ def build(season, raw_dir):
                 t_a, t_b = team_ids[0], team_ids[1]
                 to_a = [player_map.get(m["targetId"]) for m in trade_msgs if m.get("to") == t_a and player_map.get(m["targetId"])]
                 to_b = [player_map.get(m["targetId"]) for m in trade_msgs if m.get("to") == t_b and player_map.get(m["targetId"])]
-                score_a, score_b, deltas = evaluate_trade(to_a, to_b)
-
-                if score_a > score_b:
-                    winner_id = t_a
-                    margin_str = f"+{int(score_a - score_b)} categories ({int(score_a)}–{int(score_b)})"
-                elif score_b > score_a:
-                    winner_id = t_b
-                    margin_str = f"+{int(score_b - score_a)} categories ({int(score_b)}–{int(score_a)})"
-                else:
-                    winner_id = None
-                    margin_str = f"Even trade ({score_a}–{score_b})"
-
-                entry = {
-                    "id": top_id,
-                    "mp": mp,
-                    "date": top_date,
-                    "team_a": teams_meta.get(t_a, {"id": t_a, "name": f"Team {t_a}", "owner": ""}),
-                    "team_b": teams_meta.get(t_b, {"id": t_b, "name": f"Team {t_b}", "owner": ""}),
-                    "players_a": to_a,
-                    "players_b": to_b,
-                    "score_a": score_a,
-                    "score_b": score_b,
-                    "winner_id": winner_id,
-                    "margin": margin_str,
-                    "deltas": deltas,
-                }
+                entry = make_trade_entry(top_id, mp, top_date, t_a, t_b, to_a, to_b)
                 completed_trades.append(entry)
                 weeks_trades.setdefault(str(mp), []).append(entry)
 
@@ -214,32 +254,7 @@ def build(season, raw_dir):
                 t_a, t_b = team_ids[0], team_ids[1]
                 to_a = [player_map.get(it["playerId"]) for it in trade_items if it["toTeamId"] == t_a and player_map.get(it["playerId"])]
                 to_b = [player_map.get(it["playerId"]) for it in trade_items if it["toTeamId"] == t_b and player_map.get(it["playerId"])]
-                score_a, score_b, deltas = evaluate_trade(to_a, to_b)
-
-                if score_a > score_b:
-                    winner_id = t_a
-                    margin_str = f"+{int(score_a - score_b)} categories ({int(score_a)}–{int(score_b)})"
-                elif score_b > score_a:
-                    winner_id = t_b
-                    margin_str = f"+{int(score_b - score_a)} categories ({int(score_b)}–{int(score_a)})"
-                else:
-                    winner_id = None
-                    margin_str = f"Even trade ({score_a}–{score_b})"
-
-                entry = {
-                    "id": t_id,
-                    "mp": mp,
-                    "date": t.get("proposedDate"),
-                    "team_a": teams_meta.get(t_a, {"id": t_a, "name": f"Team {t_a}", "owner": ""}),
-                    "team_b": teams_meta.get(t_b, {"id": t_b, "name": f"Team {t_b}", "owner": ""}),
-                    "players_a": to_a,
-                    "players_b": to_b,
-                    "score_a": score_a,
-                    "score_b": score_b,
-                    "winner_id": winner_id,
-                    "margin": margin_str,
-                    "deltas": deltas,
-                }
+                entry = make_trade_entry(t_id, mp, t.get("proposedDate"), t_a, t_b, to_a, to_b)
                 completed_trades.append(entry)
                 weeks_trades.setdefault(str(mp), []).append(entry)
 
