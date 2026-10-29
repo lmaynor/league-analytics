@@ -2,13 +2,15 @@ name: Refresh league data
 
 on:
   schedule:
-    # UTC, at off-peak minutes (GitHub delays or drops runs at :00 and :30). Runs on off days skip themselves.
-    # Every day: every 10 min from midday ET through the late games
-    - cron: "3-58/10 17-23 * * *"
-    - cron: "3-58/10 0-5 * * *"
-    # Sundays (ET): every 5 min, the fastest GitHub allows
-    - cron: "2-57/5 16-23 * * 0"
-    - cron: "2-57/5 0-5 * * 1"
+    # UTC, at off-peak minutes away from :00 and :30 to bypass GitHub Actions queue congestion.
+    # Evening game window (7:00 PM - 2:00 AM ET / 23:00 - 06:00 UTC): every 10 min
+    - cron: "7,17,27,37,47,57 23,0,1,2,3,4,5 * * *"
+    # Weekend afternoon games (1:00 PM - 6:00 PM ET / 17:00 - 22:00 UTC on Sat & Sun): every 10 min
+    - cron: "7,17,27,37,47,57 17-22 * * 0,6"
+    # Weekday afternoon coverage (1:00 PM - 6:00 PM ET): every 30 min (exits in 5s when no games on)
+    - cron: "17,47 17-22 * * 1-5"
+    # Morning checkpoint for overnight roster and waiver updates (10:15 AM ET / 14:15 UTC)
+    - cron: "15 14 * * *"
   workflow_dispatch:
 
 permissions:
@@ -56,15 +58,20 @@ jobs:
       - name: Commit refreshed data
         if: steps.gate.outputs.run == 'true'
         run: |
-          # one commit a night keeps the repo small; the site still redeploys on every run
-          if [ "$GITHUB_EVENT_NAME" != workflow_dispatch ] && ! { [ "$(date -u +%H)" = 05 ] && [ "$(date -u +%M)" -ge 40 ]; }; then
-            echo "Not the end of the night, skipping the commit."; exit 0
+          # One commit a night keeps the repo small; the site still redeploys on every run.
+          # Allow committing during the late-night wrap-up window (05:00 - 06:59 UTC / 1:00 - 2:59 AM ET).
+          if [ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]; then
+            HOUR=$(date -u +%-H)
+            if [ "$HOUR" -lt 5 ] || [ "$HOUR" -gt 6 ]; then
+              echo "Not the end of the night ($HOUR UTC), skipping the commit."
+              exit 0
+            fi
           fi
           git config user.name "league-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/raw site config
           git diff --cached --quiet || git commit -m "Data refresh $(date -u +'%Y-%m-%d %H:%M') UTC"
-          # someone else may have pushed meanwhile; replay this refresh on top (its data wins)
+          # Someone else may have pushed meanwhile; replay this refresh on top (its data wins)
           for i in 1 2 3; do
             git pull --rebase -X theirs && git push && break
             sleep 5
