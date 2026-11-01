@@ -12,6 +12,12 @@ on:
     # Morning checkpoint for overnight roster and waiver updates (10:15 AM ET / 14:15 UTC)
     - cron: "15 14 * * *"
   workflow_dispatch:
+    inputs:
+      source:
+        description: "cron = an external scheduler (cron-job.org): same game check and nightly commit as the schedule. manual = always build and commit."
+        type: choice
+        options: [manual, cron]
+        default: manual
 
 permissions:
   contents: write
@@ -35,6 +41,7 @@ jobs:
         id: gate
         env:
           SEASON: ${{ vars.SEASON }}
+          REFRESH_SOURCE: ${{ inputs.source }}
         run: python3 pipeline/should_run.py >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-python@v5
@@ -57,10 +64,12 @@ jobs:
 
       - name: Commit refreshed data
         if: steps.gate.outputs.run == 'true'
+        env:
+          REFRESH_SOURCE: ${{ inputs.source }}
         run: |
           # One commit a night keeps the repo small; the site still redeploys on every run.
           # Allow committing during the late-night wrap-up window (05:00 - 06:59 UTC / 1:00 - 2:59 AM ET).
-          if [ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]; then
+          if [ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ] || [ "$REFRESH_SOURCE" = "cron" ]; then
             HOUR=$(date -u +%-H)
             if [ "$HOUR" -lt 5 ] || [ "$HOUR" -gt 6 ]; then
               echo "Not the end of the night ($HOUR UTC), skipping the commit."

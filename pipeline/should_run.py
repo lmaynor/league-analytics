@@ -1,7 +1,7 @@
 """Decide whether a scheduled refresh is worth running: only when an NBA game is on.
 
 Prints run=true or run=false (the format GitHub Actions reads from $GITHUB_OUTPUT).
-Manual runs always go. Uses only the standard library so it can run before pip install.
+Manual runs always go; an external scheduler (REFRESH_SOURCE=cron) is gated like the GitHub schedule. Uses only the standard library so it can run before pip install.
 """
 import json
 import os
@@ -27,5 +27,5 @@ def should_run(now_ms):
 
 if __name__ == "__main__":
     now = float(os.environ.get("NOW_MS", time.time() * 1000))
-    manual = os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
+    manual = os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch" and os.environ.get("REFRESH_SOURCE") != "cron"
     print(f"run={'true' if manual or should_run(now) else 'false'}")

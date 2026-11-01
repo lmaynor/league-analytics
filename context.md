@@ -82,6 +82,7 @@ Each feature writes its own file (`live.json`, `records.json`, `cheerios.json`, 
 - Design: "Cobalt" (near-white paper, hairlines, one cobalt accent, graphite panels, keycap buttons). Title Case headings and column headers. No emoji, gradients, glass or left-stripe cards in the UI.
 - Copy: short, plain, natural; no em dashes; no hype words; do not explain the joke (the name Red Cheerios stands alone). Owner names are first names.
 - Comments: only where they say something the code does not (why, constraints); no banners, narration or end markers.
+- Scheduling: cron-job.org POSTs a `workflow_dispatch` with `inputs.source=cron` (fine-grained token, Actions write only) every 5 minutes; GitHub's own `schedule` stays as a backup because it drops runs. `source=cron` applies the NBA game gate and the nightly-commit rule; the default `manual` bypasses both. Steps are in the README.
 - Ship style: commit and push straight to `main`, then `gh workflow run refresh.yml` to deploy. End commit messages with the Claude co-author line.
 - Never commit `.env` or cookie values; owner account ids are hashed in raw data.
 

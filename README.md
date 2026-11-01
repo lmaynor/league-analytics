@@ -39,7 +39,17 @@ Each category gets a win probability and a **swing**: how many points of matchup
 
 1. In the GitHub repo go to **Settings, Pages, Build and deployment, Source** and choose **GitHub Actions**.
 2. Under **Settings, Secrets and variables, Actions** add the secrets `LEAGUE_ID`, `ESPN_S2` (decoded) and `SWID` (with braces).
-3. Run **Actions, Refresh league data** once. After that it runs every 10 minutes from midday ET through the late games, and every 5 minutes on Sundays (the fastest GitHub allows; it often runs a few minutes late). Each run first checks the NBA schedule and skips itself when no game is on, so off days cost almost nothing. The site redeploys on every run, but the data is committed once a night so the repo stays small. ESPN cookies last about a year; when they expire the runs fail and GitHub emails you, and you replace the `ESPN_S2` and `SWID` secrets.
+3. Run **Actions, Refresh league data** once. After that it runs every 10 minutes from midday ET through the late games, and every 5 minutes on Sundays (the fastest GitHub allows; it often runs a few minutes late). Each run first checks the NBA schedule and skips itself when no game is on, so off days cost almost nothing. The site redeploys on every run, but the data is committed once a night so the repo stays small. GitHub's scheduler is unreliable and drops runs, so a free external scheduler (see below) is the primary trigger and the GitHub schedule is the backup. ESPN cookies last about a year; when they expire the runs fail and GitHub emails you, and you replace the `ESPN_S2` and `SWID` secrets.
+
+### Reliable trigger with cron-job.org
+
+1. GitHub, **Settings, Developer settings, Fine-grained tokens**: new token, only this repository, **Actions: Read and write** (nothing else), 1-year expiry. It can start workflows but cannot touch the code.
+2. cron-job.org, new cron job:
+   - URL `https://api.github.com/repos/lmaynor/league-analytics/actions/workflows/refresh.yml/dispatches`
+   - Schedule: every 5 minutes, timezone America/New_York, hours 11 to 23 and 0 to 1
+   - Advanced: method **POST**, body `{"ref":"main","inputs":{"source":"cron"}}`, headers `Authorization: Bearer <token>`, `Accept: application/vnd.github+json`, `Content-Type: application/json`
+   - A success is HTTP 204. Turn on failure notifications.
+3. `source: cron` makes the run behave like a scheduled one: it skips itself when no NBA game is on and commits data once a night. The default `manual` always builds and commits.
 
 Hosted pages are public, so team names and scores are visible to anyone with the URL. Your cookies are not. Raw files keep only owners' ESPN display names, and account IDs are hashed.
 
