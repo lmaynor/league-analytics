@@ -236,7 +236,7 @@ function updateRaceTable(d) {
           ? `<div class="rbar"><i style="width:${Math.max(p * 100, p > 0 ? 2 : 0)}%"></i><span>${pctTxt(p)}</span></div>`
           : pctTxt(p);
         return `<tr>
-          <td class="l"><b>${esc(t.name)}</b><span class="sub">${esc(t.owner)}<span class="show-sm"> · ${recTxt(t.record)}</span></span></td>
+          <td class="l"><b>${esc(t.name)}</b><span class="sub">${esc(t.owner)}<span class="show-sm"> · ${recTxt(t.record)}</span></span>${t.out_names?.length ? `<span class="sub">Out: ${esc(t.out_names.slice(0, 3).join(", "))}${t.out_names.length > 3 ? ` +${t.out_names.length - 3}` : ""}</span>` : ""}</td>
           <td class="hide-sm" data-v="${t.record[0]}">${recTxt(t.record)}</td>
           <td class="hide-sm" data-v="${t.proj_wins}">${t.proj_wins.toFixed(1)}</td>
           <td data-v="${t.p_title ?? 0}" class="${mode === "title" ? "mk-col-active" : ""}">${cellBar(t.p_title ?? 0, mode === "title")}</td>

@@ -41,6 +41,8 @@ ESPN's `injuryStatus` is one flag as of the moment of the fetch, and it reads `N
 
 The report only covers today and tomorrow. For later games a starter listed Out for an injury at his team's last covered game keeps a low but rising chance of playing (0.13 for his next game, 0.24, 0.29, 0.33, up to 0.46 ten games out), measured on the same listings. Each game day's listing is archived in `data/raw/<season>/injuries/` so these numbers can be refit by designation later. Needs poppler (`brew install poppler`, installed in the workflow); without it the step is skipped and ESPN's flag is used.
 
+**Season projections and injuries.** Category results lag a long injury, so a team that loses its stars keeps the strength it earned with them. `features/race.py` measures the share of each team's core (its 9 most valuable players, any slot, so a benched or IR star counts) that is listed Out for an injury in the newest report and lowers the team's strength for the games still to play, fading over the next five weeks (`KAPPA`, `HEALTH_PERSIST`). In a backtest on 146 matchups from 2025-26 this improved prediction in both seasons held out, and the weight is applied at about three quarters of its fitted size because the sample is small. The Race for Last table lists who is out under each team.
+
 ## Hosting (GitHub Pages + auto-refresh)
 
 1. In the GitHub repo go to **Settings, Pages, Build and deployment, Source** and choose **GitHub Actions**.

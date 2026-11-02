@@ -13,11 +13,53 @@ from pathlib import Path
 import numpy as np
 
 from cats import RATIO
+import injuries
 from features.cheerios import ACTIVE_SLOTS, load_days
+from features.live import player_means
 from matchups import CURRENT, cat_result, pct_value
 
 K = 5.73
 PRIOR_CATS = 27  # about three weeks of categories
+# Players who are out. Category results lag a long injury: a team that loses its stars keeps the strength it earned with them
+# for weeks. Backtest (146 matchups, 2025-26, injury reports of the day): adding the share of a team's core (its 9 most
+# valuable players, any slot, so a benched or IR star counts) that was listed Out for an injury at the start of the week
+# improved matchup log loss in both seasons held out (.670 -> .655 overall; the healthier side won 64% where one side had 10%+
+# more out, against 54% predicted from results alone). The fitted weight was 2.6 logit per unit; KAPPA applies about three
+# quarters of it because the sample is small. The effect fades with the weeks ahead as players return (the carry-forward curve in
+# injuries.CARRY_Q), HEALTH_PERSIST being week 1 = 1.
+KAPPA = 0.35
+HEALTH_PERSIST = (1.0, 0.77, 0.66, 0.59, 0.54)
+# per-game mean and spread of PTS REB AST STL BLK 3PM TO over rotation players (20+ minutes), 2024-26 box scores
+Z_STATS = ("0", "6", "3", "2", "1", "17", "11")
+Z_MU = (14.8079, 5.3843, 3.3298, 0.9605, 0.5831, 1.6671, 1.6774)
+Z_SD = (8.3953, 3.5147, 2.7922, 1.0484, 0.9199, 1.6316, 1.5099)
+
+
+def core_out_shares(roster, doc, sched, season):
+    """{team id: (share of core value listed Out for an injury, [their names])} from the newest official report."""
+    if not roster or not doc or not doc.get("rows"):
+        return {}
+    players = [p for ps in roster.values() for p in ps]
+    listed, _ = injuries.resolve(doc["rows"], players, sched["teams"])
+    out_ids = set()
+    for pid, by_day in listed.items():
+        last = by_day[max(by_day)]  # his newest listing
+        if last["status"] == "Out" and last["reason_cat"] in ("injury_illness", "injury_management"):
+            out_ids.add(pid)
+    res = {}
+    for tid, ps in roster.items():
+        vals = []
+        for p in ps:
+            m = player_means(p, season)
+            v = sum(((m[k] - mu) / sd) * (-1 if k == "11" else 1) for k, mu, sd in zip(Z_STATS, Z_MU, Z_SD))
+            vals.append((max(v, 0.0), p))
+        core = sorted(vals, key=lambda x: -x[0])[:9]
+        tot = sum(v for v, _ in core)
+        gone = [(v, p) for v, p in core if p["id"] in out_ids]
+        res[str(tid)] = (round(sum(v for v, _ in gone) / tot, 3) if tot else 0.0, [p["name"] for v, p in sorted(gone, key=lambda x: -x[0])])
+    return res
+
+
 # Win chance partway through a matchup week: logit p = ws * (K * strength gap) + wl * (category lead - 0.5), by day of the
 # week. Fit on 146 matchups (2025-26, 876 matchup-days); scored on the season it was not fitted on it beat a 50/50 average
 # of strength and lead by 0.559 vs 0.596 and 0.524 vs 0.590 log loss. Strength matters early, the lead takes over by midweek.
@@ -50,7 +92,7 @@ def places(pos):
     return [int(v) for v in out]
 
 
-def build_season(season, data, rows, teams, league, prior_by_owner, live, days=None):
+def build_season(season, data, rows, teams, league, prior_by_owner, live, days=None, health=None):
     sched = regular_schedule(league)
     tids = sorted(teams)
     idx = {t: i for i, t in enumerate(tids)}
@@ -69,7 +111,9 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live, days=N
     prior = {t: 0.5 * 0.5 + 0.5 * prior_by_owner.get(teams[t]["owner"], 0.5) for t in tids}
     rng = np.random.default_rng(11)
 
-    def simulate(upto, live_p=None, n=SIMS):
+    out_share = np.array([(health or {}).get(str(t), (0.0, []))[0] for t in tids])
+
+    def simulate(upto, live_p=None, n=SIMS, use_health=False):
         wins = np.zeros(T)
         ties = np.zeros(T)
         cw, cn = np.zeros(T), np.zeros(T)
@@ -95,7 +139,10 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live, days=N
             H = np.zeros((len(left), T)); A = np.zeros((len(left), T)); ph = np.zeros(len(left))
             for j, (mp, h, a) in enumerate(left):
                 H[j, idx[h]] = 1; A[j, idx[a]] = 1
-                ph[j] = 1 / (1 + np.exp(-K * (s[idx[h]] - s[idx[a]])))
+                se = s
+                if use_health and out_share.any():  # teams missing core players are weaker than their results so far, fading by week
+                    se = s - KAPPA * HEALTH_PERSIST[min(mp - upto, len(HEALTH_PERSIST)) - 1] * out_share
+                ph[j] = 1 / (1 + np.exp(-K * (se[idx[h]] - se[idx[a]])))
                 if live_p and (mp, h) in live_p:
                     ph[j] = live_p[(mp, h)]
             home_wins = rng.random((n, len(left))) < ph
@@ -108,7 +155,7 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live, days=N
         return {"wins": wins, "ties": ties, "gp": gp, "s": s, "left": left_n, "sim_wins": sim_wins, "pos": pos}
 
     upto_now = max(completed) if completed else 0
-    now = simulate(upto_now, live_p)
+    now = simulate(upto_now, live_p, use_health=season == CURRENT)
     # weekly trail: chances across prediction market models after the start and after each checkpoint
     trail = {t: [] for t in tids}  # odds of last (backward compat)
     trail_title = {t: [] for t in tids}  # title / 1st place odds
@@ -191,6 +238,7 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live, days=N
             "p_last": round(float((ranks == T).mean()), 4),
             "rank_p10": int(np.percentile(ranks, 10)), "rank_med": int(np.median(ranks)), "rank_p90": int(np.percentile(ranks, 90)),
             "strength": round(float(now["s"][i]), 3),
+            "out_share": (health or {}).get(str(t), (0.0, []))[0], "out_names": (health or {}).get(str(t), (0.0, []))[1],
             "trail": trail[t],
             "trail_last": trail[t],
             "trail_title": trail_title[t],
@@ -223,5 +271,13 @@ def build(per_season, raw, live):
         prior = {}
         if season - 1 in per_season:
             prior = {s["owner"]: s["cat_pct"] for s in per_season[season - 1][0]["standings"]}
-        seasons[str(season)] = build_season(season, data, rows, teams, league, prior, live, load_days(raw, season) if season == CURRENT else None)
+        health = None
+        if season == CURRENT:
+            try:
+                rost = json.loads((raw / str(season) / "roster.json").read_text(encoding="utf-8"))
+                sch = json.loads((raw / str(season) / "proschedule.json").read_text(encoding="utf-8"))
+                health = core_out_shares(rost, injuries.load(raw / str(season)), sch, season)
+            except Exception:  # no roster or report: fall back to results alone
+                health = None
+        seasons[str(season)] = build_season(season, data, rows, teams, league, prior, live, load_days(raw, season) if season == CURRENT else None, health)
     return {"seasons": seasons, "k": K}
