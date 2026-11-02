@@ -23,15 +23,21 @@ BASE = "https://ak-static.cms.nba.com/referee/injury"
 ET = ZoneInfo("America/New_York")
 STATUSES = ("Out", "Doubtful", "Questionable", "Probable", "Available")
 NOT_SUBMITTED = "NOT_SUBMITTED"
-# chance a listed player plays that game; priors in line with the ESPN designations the model already used
-# (Doubtful 0.2, Questionable 0.6). The archive in data/raw/<season>/injuries/ is what a later calibration reads.
-STATUS_Q = {"Out": 0.0, "Doubtful": 0.2, "Questionable": 0.6, "Probable": 0.9, "Available": 1.0}
+# Chance a listed player plays that game, measured on 14,435 report listings from the 2024-25 and 2025-26 regular seasons
+# (one report per game day at about 5 PM ET) against the box scores, for rotation players (20+ minutes lately). The report
+# from the same day is sharper than the one from the day before. When a rotation player does play he gets 93-99% of his usual
+# minutes, so no minutes adjustment is applied. Doubtful has few listings (160), so both days share one pooled value.
+STATUS_Q_SAME = {"Out": 0.09, "Doubtful": 0.27, "Questionable": 0.64, "Probable": 0.83, "Available": 0.96}
+STATUS_Q_AHEAD = {"Out": 0.01, "Doubtful": 0.27, "Questionable": 0.54, "Probable": 0.93, "Available": 0.98}
+# a player listed Out the same day, by reason (measured: rest 26%, G League 0%, injury 8%, personal 18%, suspension 8%)
+OUT_SAME_BY_REASON = {"rest": 0.25, "g_league": 0.0, "injury_illness": 0.08, "injury_management": 0.08}
+FINAL_MIN = 60  # an Out listing within an hour of tip-off is final: late changes are already in
 MAX_AGE_MIN = 6 * 60  # a report older than this is not trusted for anything
-# chance a player listed Out for an injury plays his k-th team game after the report stops covering him. Measured on the
-# league's own 2025 and 2026 daily lineups: P(starter misses a later game | missed this one) = .45 .33 .29 .29 .27 .27 .25
-# (a starter misses 12.5% of team games at baseline), so q = 1 - that. Conservative: it counts every kind of miss, while an
-# official Out for an injury tends to last longer. data/raw/<season>/injuries/ is what a refit by designation would use.
-CARRY_Q = (0.55, 0.67, 0.71, 0.71, 0.73, 0.73, 0.75)
+# Chance a rotation player listed Out for an injury plays his k-th team game after the report stops covering him, measured on
+# the same listings: .13 .24 .29 .33 .35 .38 .40 .44 .45 .46 (a first estimate from ordinary missed games was far too high,
+# .55 .67 .71, because injury absences are much longer). Beyond 10 games the last value is used. Being listed for several days
+# in a row does not raise the odds of a return (first day .15, 2nd-3rd .10, 4th-9th .05), so one curve is used.
+CARRY_Q = (0.13, 0.24, 0.29, 0.33, 0.35, 0.38, 0.40, 0.44, 0.45, 0.46)
 # team nickname in the report's Team column -> ESPN abbreviation (the keys of proschedule.json "teams")
 NICKNAMES = {"Hawks": "ATL", "Celtics": "BOS", "Nets": "BKN", "Hornets": "CHA", "Bulls": "CHI", "Cavaliers": "CLE",
              "Mavericks": "DAL", "Nuggets": "DEN", "Pistons": "DET", "Warriors": "GS", "Rockets": "HOU", "Pacers": "IND",
@@ -318,15 +324,18 @@ def et_date(ms):
 def build_lookup(doc, players, sched, now_ms):
     """lookup(player, game) -> (chance he plays, status label) from the official report, or None for no official verdict.
 
-    * a player listed for the game's date: his status (Out 0, Doubtful .2, Questionable .6, Probable .9, Available 1)
+    * a player listed for the game's date: the measured chance for his status (STATUS_Q_SAME for a report written that
+      day, STATUS_Q_AHEAD for one written the day before; an Out listing within an hour of tip-off counts as 0)
     * a game the report does not cover (a later date, or his team's list is not submitted yet): a starter listed Out
       for an injury at his team's last covered game carries forward with CARRY_Q by games since (a rest day is a
       one-game absence and does not carry)
     * anything else (unlisted, team not submitted, report too old): None, and the caller keeps its own estimate"""
     if not doc or not doc.get("rows") or not doc.get("asof"):
         return None
-    if (now_ms - datetime.fromisoformat(doc["asof"]).timestamp() * 1000) / 60000 > MAX_AGE_MIN:
+    asof_ms = datetime.fromisoformat(doc["asof"]).timestamp() * 1000
+    if (now_ms - asof_ms) / 60000 > MAX_AGE_MIN:
         return None
+    asof_day = et_date(asof_ms)
     abbrev = sched["teams"]
     listed, _ = resolve(doc["rows"], players, abbrev)
     nys = set(map(tuple, not_submitted(doc["rows"])))
@@ -343,7 +352,13 @@ def build_lookup(doc, players, sched, now_ms):
         d = et_date(g["t"])
         mine = listed.get(p["id"], {})
         if d in mine:
-            return STATUS_Q[mine[d]["status"]], mine[d]["status"]
+            r = mine[d]
+            if d != asof_day:  # the report was written the day before
+                return STATUS_Q_AHEAD[r["status"]], r["status"]
+            if r["status"] == "Out":
+                final = (g["t"] - asof_ms) / 60000 <= FINAL_MIN
+                return (0.0 if final else OUT_SAME_BY_REASON.get(r["reason_cat"], 0.10)), "Out"
+            return STATUS_Q_SAME[r["status"]], r["status"]
         dates, ab = team_dates.get(str(p["pro"]), []), abbrev.get(str(p["pro"]))
         if d <= last_date and (ab, d) not in nys:
             return None  # the report covers this game and does not list him: no official verdict

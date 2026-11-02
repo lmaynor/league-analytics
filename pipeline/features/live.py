@@ -156,7 +156,7 @@ def tonight(games_all, team_players, cur_sp, now_ms, abbrev, lookup=None):
         for g in games_all:
             if g["sp"] == cur_sp and p["pro"] in (g["home"], g["away"]):
                 q, inj = availability(p, g, lookup)
-                if q == 0:  # out tonight
+                if q < 0.15:  # listed Out (or all but): not playing tonight
                     continue
                 opp = g["away"] if p["pro"] == g["home"] else g["home"]
                 status = game_state(g, now_ms)
