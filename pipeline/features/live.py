@@ -57,6 +57,16 @@ def week_days(league, sched, matchup_row_home):
 
 
 GAME_MS = 3 * 3600 * 1000  # an NBA game is over ~3h after tip even if ESPN has not marked stats official
+GAME_MIN = 145  # minutes from tip to the final buzzer on average (halftime and stoppages included)
+TIP_LAG = 5     # tip-off usually follows the scheduled time by a few minutes
+LIVE_FLOOR = 0.04  # a game that runs long still has a little left until it is marked final
+
+
+def live_fraction(g, now_ms):
+    """Share of a game still to be played, from the time since its scheduled tip: nearly all of it at tip-off, none by the end.
+    A flat half for any game in progress treated a starter who had just checked in as 50% done."""
+    elapsed = (now_ms - g["t"]) / 60000 - TIP_LAG
+    return min(1.0, max(LIVE_FLOOR, 1 - elapsed / GAME_MIN))
 
 
 def game_state(g, now_ms):
@@ -73,7 +83,7 @@ def remaining_games(sched, cur_sp, end_sp, now_ms):
         state = game_state(g, now_ms)
         if sp < cur_sp or sp > end_sp or state == "final":
             continue
-        frac = 0.5 if state == "live" else 1.0
+        frac = live_fraction(g, now_ms) if state == "live" else 1.0
         for team in (g["home"], g["away"]):
             out.setdefault(sp, {})[team] = (frac, g)
     return out
