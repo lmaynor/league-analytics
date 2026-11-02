@@ -35,6 +35,12 @@ For the current matchup week, `pipeline/features/live.py` takes each side's live
 
 Each category gets a win probability and a **swing**: how many points of matchup win probability change depending on who takes it. **Sweat** = swing x how uncertain the category is, which is what ranks the board.
 
+## Injuries
+
+ESPN's `injuryStatus` is one flag as of the moment of the fetch, and it reads `NORMAL` for every player on the league's rosters, so it cannot tell the live model who is out. `pipeline/injuries.py` fetches the newest **official NBA injury report** (a PDF the league publishes about every 15 minutes), parses it with `pdftotext` word geometry, and matches names to the league's rostered players. The live model then uses a per-game chance of playing: Out 0, Doubtful 0.2, Questionable 0.6, Probable 0.9, Available 1. Players the report does not list, and teams whose list is not filed yet, fall back to ESPN's flag.
+
+The report only covers today and tomorrow. For later games a starter listed Out for an injury at his team's last covered game keeps a falling chance of playing (0.55, 0.67, 0.71, then about 0.73 for his next games), measured from the league's own 2025 and 2026 lineups. Each game day's listing is archived in `data/raw/<season>/injuries/` so these numbers can be refit by designation later. Needs poppler (`brew install poppler`, installed in the workflow); without it the step is skipped and ESPN's flag is used.
+
 ## Hosting (GitHub Pages + auto-refresh)
 
 1. In the GitHub repo go to **Settings, Pages, Build and deployment, Source** and choose **GitHub Actions**.

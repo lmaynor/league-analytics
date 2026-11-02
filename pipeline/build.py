@@ -11,6 +11,7 @@ import json
 import sys
 import traceback
 
+import injuries
 from espn_client import ROOT
 from features import cheerios, collapse, history, lineup, live, race, records, standings, superlatives, swaps, trades
 from matchups import CURRENT
@@ -108,7 +109,7 @@ def main():
     live_out = {}
     def do_live():
         out = live.build(league, per_season[CURRENT][0], read(RAW / str(CURRENT) / "roster.json"),
-                         read(RAW / str(CURRENT) / "proschedule.json"))
+                         read(RAW / str(CURRENT) / "proschedule.json"), injuries_doc=injuries.load(RAW / str(CURRENT)))
         live_out.update(out or {})
         return {"live.json": out or {"active": False}}
     written += run("live", only, do_live)

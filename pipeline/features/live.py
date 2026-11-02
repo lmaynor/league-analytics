@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 
 import numpy as np
 
+import injuries
 from cats import COUNTING, OD, RATIO, REVERSE, label
 
 SIMS = 10000
@@ -72,19 +73,28 @@ def remaining_games(sched, cur_sp, end_sp, now_ms):
     return out
 
 
-def plan_team(players, season, rem):
+def availability(p, g, lookup):
+    """(chance this player plays this game, label): the official injury report when it has a verdict, else ESPN's flag."""
+    got = lookup(p, g) if lookup else None
+    return got if got else (AVAIL.get(p["inj"], 1.0), p["inj"])
+
+
+def plan_team(players, season, rem, lookup=None):
     """Expected player-games for the rest of the week.
 
     Lineups lock for the week (each player at his first game), so the current starters play every
-    game they have left. Bench players never replace an injured or resting starter."""
+    game they have left, discounted by how likely each is to play that game. Bench players never
+    replace an injured or resting starter."""
     pm = {p["id"]: player_means(p, season) for p in players}
-    starters = [p for p in players if p["slot"] in ACTIVE and AVAIL.get(p["inj"], 1.0) > 0]
+    starters = [p for p in players if p["slot"] in ACTIVE]
     games = []
     for sp in sorted(rem):
         for p in starters:
             if p["pro"] in rem[sp]:
                 frac, g = rem[sp][p["pro"]]
-                games.append({"p": p, "sp": sp, "f": frac, "q": AVAIL.get(p["inj"], 1.0), "m": pm[p["id"]], "g": g})
+                q, _ = availability(p, g, lookup)
+                if q > 0:
+                    games.append({"p": p, "sp": sp, "f": frac, "q": q, "m": pm[p["id"]], "g": g})
     return games
 
 
@@ -137,18 +147,21 @@ def state(p):
     return "toss-up"
 
 
-def tonight(games_all, team_players, cur_sp, now_ms, abbrev):
+def tonight(games_all, team_players, cur_sp, now_ms, abbrev, lookup=None):
     """Players with a game on the current day, with game status."""
     out = []
     for p in team_players:
-        if p["slot"] not in ACTIVE or AVAIL.get(p["inj"], 1.0) == 0:  # bench and IR players are not "playing tonight"
+        if p["slot"] not in ACTIVE:  # bench and IR players are not "playing tonight"
             continue
         for g in games_all:
             if g["sp"] == cur_sp and p["pro"] in (g["home"], g["away"]):
+                q, inj = availability(p, g, lookup)
+                if q == 0:  # out tonight
+                    continue
                 opp = g["away"] if p["pro"] == g["home"] else g["home"]
                 status = game_state(g, now_ms)
                 out.append({"name": p["name"], "pro": abbrev.get(str(p["pro"])), "opp": abbrev.get(str(opp)),
-                            "status": status, "t": g["t"], "active": p["slot"] != 12, "inj": p["inj"]})
+                            "status": status, "t": g["t"], "active": p["slot"] != 12, "inj": inj.upper() if inj else inj})
     out.sort(key=lambda x: (x["status"] != "upcoming", x["status"] != "live", x["t"], not x["active"]))
     return out
 
@@ -174,7 +187,7 @@ def hide(mm, lock):
             "cats": [{k: c[k] for k in ("id", "label", "reverse", "hv", "av")} for c in mm["cats"]]}
 
 
-def build(league, season_data, roster, sched, now_ms=None):
+def build(league, season_data, roster, sched, now_ms=None, injuries_doc=None):
     if not roster or not sched:
         return {"active": False}
     season = league["seasonId"]
@@ -190,9 +203,10 @@ def build(league, season_data, roster, sched, now_ms=None):
     cids = [c["id"] for c in season_data["cats"]]
     teams = season_data["teams"]
 
+    lookup = injuries.build_lookup(injuries_doc, [p for ps in roster.values() for p in ps], sched, now_ms)
     sims, plans = {}, {}
     for tid, players in roster.items():
-        plans[tid] = plan_team(players, season, rem)
+        plans[tid] = plan_team(players, season, rem, lookup)
         sims[tid] = simulate_team(plans[tid], rng)
 
     out_matchups = []
@@ -241,8 +255,8 @@ def build(league, season_data, roster, sched, now_ms=None):
             "p_tie": round(float((~win & ~loss).mean()), 4),
             "exp_home_cats": round(float(hw.mean()), 2), "exp_away_cats": round(float(aw.mean()), 2),
             "cats": cats,
-            "home_side": side_info(plans[h], roster[h], cur_sp, end_sp, now_ms, abbrev, date_of, sched),
-            "away_side": side_info(plans[a], roster[a], cur_sp, end_sp, now_ms, abbrev, date_of, sched),
+            "home_side": side_info(plans[h], roster[h], cur_sp, end_sp, now_ms, abbrev, date_of, sched, lookup),
+            "away_side": side_info(plans[a], roster[a], cur_sp, end_sp, now_ms, abbrev, date_of, sched, lookup),
         })
         lock = {"home": lock_counts(m["home"], m, roster, sched, now_ms), "away": lock_counts(m["away"], m, roster, sched, now_ms)}
         if any(done < total for done, total in lock.values()):
@@ -268,6 +282,7 @@ def build(league, season_data, roster, sched, now_ms=None):
         "date": date_of(cur_sp).isoformat(), "end_date": date_of(end_sp).isoformat(),
         "final_day": cur_sp == end_sp, "games_left": games_left,
         "sims": SIMS, "cats": season_data["cats"], "matchups": out_matchups, "sweat": sweat[:12],
+        "injury_report": injury_meta(injuries_doc, lookup, now_ms),
     }
 
 
@@ -281,14 +296,23 @@ def top(contrib, k):
     return [{"name": n, "exp": round(v, 1)} for n, v in items if abs(v) > 0.05]
 
 
-def side_info(games, players, cur_sp, end_sp, now_ms, abbrev, date_of, sched):
+def injury_meta(doc, lookup, now_ms):
+    """What the page may say about the official injury report behind these numbers."""
+    if not doc or not doc.get("asof"):
+        return None
+    asof = dt.datetime.fromisoformat(doc["asof"])
+    return {"asof": doc["asof"], "age_min": round((now_ms - asof.timestamp() * 1000) / 60000), "used": lookup is not None,
+            "listed": doc.get("matched", 0), "teams_pending": len({a for a, _ in doc.get("not_submitted", [])})}
+
+
+def side_info(games, players, cur_sp, end_sp, now_ms, abbrev, date_of, sched, lookup=None):
     by_day = {}
     for g in games:
         by_day[g["sp"]] = by_day.get(g["sp"], 0) + g["f"]
     return {
         "player_games_left": round(sum(g["f"] * g["q"] for g in games), 1),
         "by_day": [{"sp": sp, "date": date_of(sp).isoformat(), "n": round(n, 1)} for sp, n in sorted(by_day.items())],
-        "tonight": tonight(sched["games"], players, cur_sp, now_ms, abbrev),
+        "tonight": tonight(sched["games"], players, cur_sp, now_ms, abbrev, lookup),
     }
 
 

@@ -3,7 +3,9 @@
 function oddsHeader(L) {
   const asof = new Date(L.asof_ms).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" });
   const top = L.sweat.slice(0, 8);
-  return `<div class="sub">Odds as of ${asof} · ${L.sims.toLocaleString()} simulations of the rest of the week</div>
+  const ir = L.injury_report;
+  const inj = ir?.used ? ` · Injuries per the NBA report of ${new Date(ir.asof).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}${ir.teams_pending ? `, ${ir.teams_pending} teams not filed yet` : ""}` : "";
+  return `<div class="sub">Odds as of ${asof} · ${L.sims.toLocaleString()} simulations of the rest of the week${inj}</div>
     <div class="banner">${L.final_day ? "Final Day of the Week" : `Week ends ${new Date(L.end_date + "T12:00").toLocaleDateString([], { weekday: "long" })}`}
       <small>${L.games_left} lineup player-games left across the league</small></div>
     ${top.length ? `<h2>Biggest Category Swings</h2>

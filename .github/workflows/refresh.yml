@@ -53,6 +53,10 @@ jobs:
       - run: pip install -r requirements.txt
         if: steps.gate.outputs.run == 'true'
 
+      - name: Install poppler (reads the official NBA injury report PDF)
+        if: steps.gate.outputs.run == 'true'
+        run: command -v pdftotext >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils)
+
       - name: Fetch from ESPN and build analytics
         if: steps.gate.outputs.run == 'true'
         env:

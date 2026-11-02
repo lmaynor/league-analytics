@@ -8,6 +8,7 @@ import json
 import sys
 from concurrent.futures import ThreadPoolExecutor
 
+import injuries
 from espn_client import ROOT, ESPNClient
 from season import current_season
 import os
@@ -155,7 +156,12 @@ def fetch_season(c, season):
     if season == CURRENT:
         sp = league.get("scoringPeriodId")
         _write(d / "roster.json", compact_roster(c.league(season, ["mRoster"], scoring_period=sp), season))
-        _write(d / "proschedule.json", compact_schedule(c.pro_schedule(season)))
+        sched = compact_schedule(c.pro_schedule(season))
+        _write(d / "proschedule.json", sched)
+        # the official injury report: ESPN's flag is a snapshot, this is the list the teams submit (never fatal)
+        roster = _read(d / "roster.json") or {}
+        status, note = injuries.refresh(d, [p for ps in roster.values() for p in ps], sched["teams"])
+        print(f"{season}: injury report {status} ({note})")
         txs = c.league(season, ["mTransactions2"])
         if txs and "transactions" in txs:
             _write(d / "transactions.json", txs["transactions"])
