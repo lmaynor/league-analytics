@@ -28,6 +28,12 @@ PRIOR_CATS = 27  # about three weeks of categories
 # quarters of it because the sample is small. The effect fades with the weeks ahead as players return (the carry-forward curve in
 # injuries.CARRY_Q), HEALTH_PERSIST being week 1 = 1.
 KAPPA = 0.35
+# A team's strength is estimated from a few weeks of results, not known. Each simulated season draws every team's true strength
+# around the estimate with sd = STRENGTH_SD_MULT * sqrt(.25 / (category results so far + prior)), shrinking as results accumulate.
+# Replaying 9 finished seasons (2018-2026, 678 team-checkpoints, matchup scale fitted without the scored season) the projections
+# had been overconfident (last-place odds of 70% came true half the time). Log loss over top-4 / last / top seed / bottom-3 fell
+# .314 -> .301 chosen without each season in turn, better in 8 of 9 seasons.
+STRENGTH_SD_MULT = 2.0
 HEALTH_PERSIST = (1.0, 0.77, 0.66, 0.59, 0.54)
 # per-game mean and spread of PTS REB AST STL BLK 3PM TO over rotation players (20+ minutes), 2024-26 box scores
 Z_STATS = ("0", "6", "3", "2", "1", "17", "11")
@@ -136,15 +142,16 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live, days=N
         left = [(mp, h, a) for mp, h, a in sched if mp > upto]
         left_n = np.zeros(T)
         if left:
-            H = np.zeros((len(left), T)); A = np.zeros((len(left), T)); ph = np.zeros(len(left))
+            H = np.zeros((len(left), T)); A = np.zeros((len(left), T)); ph = np.zeros((n, len(left)))
+            true_s = STRENGTH_SD_MULT * np.sqrt(0.25 / (cn + PRIOR_CATS)) * rng.standard_normal((n, T))  # strength is uncertain
             for j, (mp, h, a) in enumerate(left):
                 H[j, idx[h]] = 1; A[j, idx[a]] = 1
                 se = s
                 if use_health and out_share.any():  # teams missing core players are weaker than their results so far, fading by week
                     se = s - KAPPA * HEALTH_PERSIST[min(mp - upto, len(HEALTH_PERSIST)) - 1] * out_share
-                ph[j] = 1 / (1 + np.exp(-K * (se[idx[h]] - se[idx[a]])))
+                ph[:, j] = 1 / (1 + np.exp(-K * (se[idx[h]] - se[idx[a]] + true_s[:, idx[h]] - true_s[:, idx[a]])))
                 if live_p and (mp, h) in live_p:
-                    ph[j] = live_p[(mp, h)]
+                    ph[:, j] = live_p[(mp, h)]
             home_wins = rng.random((n, len(left))) < ph
             sim_wins = wins + home_wins @ H + (~home_wins) @ A
             left_n = H.sum(0) + A.sum(0)
