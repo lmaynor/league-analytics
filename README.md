@@ -30,7 +30,7 @@ For the current matchup week, `pipeline/features/live.py` takes each side's live
 
 - every remaining NBA game for each team's current starters (lineups lock weekly, so nobody swaps mid-week)
 - player averages blend this season's form into last season and ESPN's projection
-- game-to-game spread per category; FG% and FT% are simulated from makes and attempts
+- game-to-game spread per category, with swings shared across a player's stats (minutes) and across a team's players that day (pace, blowouts); FG% and FT% are simulated from makes and attempts
 - games in progress count as half remaining, and a game counts as over 3 hours after tip-off; injured players are discounted
 
 Each category gets a win probability and a **swing**: how many points of matchup win probability change depending on who takes it. **Sweat** = swing x how uncertain the category is, which is what ranks the board.

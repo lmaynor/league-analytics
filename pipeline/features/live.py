@@ -19,6 +19,12 @@ ACTIVE = {0, 1, 2, 3, 4, 5, 6, 11}  # PG SG SF PF C G F UTIL; 12 = bench, 13 = I
 AVAIL = {"OUT": 0.0, "SUSPENSION": 0.0, "INJURY_RESERVE": 0.0, "DOUBTFUL": 0.2, "QUESTIONABLE": 0.6, "DAY_TO_DAY": 0.85}
 ET = ZoneInfo("America/New_York")
 SIM_STATS = COUNTING + [13, 14, 15, 16]
+# Shared swings. A game's stats are not independent: a player's minutes lift all of his stats together, and a team's pace or a
+# blowout lifts every teammate that day. SHARED_PLAYER is the share of each stat-game's variance common to that player's stats
+# that game, SHARED_TEAM the share common to the whole team that day; each stat's own spread is unchanged. Without them the
+# simulation was overconfident (favorites predicted 83% won 80%). Chosen by a point-in-time backtest of 876 matchup-days from
+# the 2025 and 2026 regular seasons: matchup log loss .461 -> .433, category log loss .352 -> .341, better in both seasons.
+SHARED_PLAYER, SHARED_TEAM = 0.2, 0.2
 DEFAULT = {"0": 8.0, "6": 3.0, "3": 1.8, "2": 0.6, "1": 0.3, "11": 1.0, "17": 0.8, "13": 3.0, "14": 6.8, "15": 1.4, "16": 1.8}
 
 
@@ -108,11 +114,17 @@ def simulate_team(games, rng):
     f = np.array([g["f"] for g in games])
     q = np.array([g["q"] for g in games])
     play = (rng.random((SIMS, n)) < q) * f
+    days = sorted({g["sp"] for g in games})
+    day_ix = np.array([days.index(g["sp"]) for g in games])
+    z_team = rng.standard_normal((SIMS, len(days)))[:, day_ix]  # one shock per team-day, shared by every stat and teammate
+    z_player = rng.standard_normal((SIMS, n))                   # one shock per player-game, shared by his stats
 
     def draw(sid):
         m = np.array([g["m"][str(sid)] for g in games])
         sd = np.sqrt(m + OD.get(sid, 0.07) * m * m)
-        return np.maximum(0, rng.normal(m, sd, (SIMS, n)))
+        z = (np.sqrt(SHARED_TEAM) * z_team + np.sqrt(SHARED_PLAYER) * z_player
+             + np.sqrt(1 - SHARED_TEAM - SHARED_PLAYER) * rng.standard_normal((SIMS, n)))
+        return np.maximum(0, m + sd * z)
 
     for sid in COUNTING:
         x = np.rint(draw(sid) * play)
