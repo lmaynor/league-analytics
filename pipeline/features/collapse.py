@@ -6,11 +6,10 @@ category lead (rebuilt from daily starter stats, which match ESPN's weekly total
 collapse is the loser's highest daily chance minus its chance on the last day before the final.
 """
 import json
-from math import exp
 
 from features.cheerios import ACTIVE_SLOTS, load_days
 from matchups import cat_result, parse_matchups, pct_value
-from features.race import K
+from features.race import K, daily_win_prob
 
 STATS = [0, 1, 2, 3, 6, 11, 13, 14, 15, 16, 17]
 MIN_PEAK = 0.55  # the loser was at least a 55% favorite at some point
@@ -50,12 +49,12 @@ def build_season(season, data, rows, teams, days):
         for r in (x for x in done if x["mp"] == mp):
             if r["winner"] is None or r["sp1"] - r["sp0"] < 2: continue
             h, a = r["home"], r["away"]
-            strength = 1 / (1 + exp(-K * (share(h) - share(a))))
+            gap = K * (share(h) - share(a))
             daily = []
             has_history = cn.get(h, 0) > 0 or cn.get(a, 0) > 0
             for d in range(r["sp0"], r["sp1"]):  # the final day is the ESPN result
                 lh = lead(partial(days, h, r["sp0"], d), partial(days, a, r["sp0"], d), cids)
-                daily.append((0.5 * strength + 0.5 * lh) if has_history else lh)
+                daily.append(daily_win_prob(d - r["sp0"] + 1, gap if has_history else 0.0, lh))
             if not daily: continue
             for me, opp, p_series, final_me, final_opp in (
                 (h, a, daily, r["hw"], r["aw"]), (a, h, [1 - p for p in daily], r["aw"], r["hw"])):

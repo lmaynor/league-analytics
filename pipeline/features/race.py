@@ -18,6 +18,17 @@ from matchups import CURRENT, cat_result, pct_value
 
 K = 5.73
 PRIOR_CATS = 27  # about three weeks of categories
+# Win chance partway through a matchup week: logit p = ws * (K * strength gap) + wl * (category lead - 0.5), by day of the
+# week. Fit on 146 matchups (2025-26, 876 matchup-days); scored on the season it was not fitted on it beat a 50/50 average
+# of strength and lead by 0.559 vs 0.596 and 0.524 vs 0.590 log loss. Strength matters early, the lead takes over by midweek.
+DAILY_W = {1: (0.64, 4.6), 2: (0.62, 5.0), 3: (0.32, 5.1), 4: (0.36, 5.7), 5: (0.31, 8.6), 6: (0.0, 11.3)}
+
+
+def daily_win_prob(day, strength_logit, lead):
+    """Home win chance after `day` scoring days of the week (1 = Monday), from the strength gap and the category lead
+    (share of categories led, 0.5 = even)."""
+    ws, wl = DAILY_W[min(max(day, 1), 6)]
+    return float(1 / (1 + np.exp(-(ws * strength_logit + wl * (lead - 0.5)))))
 SIMS = 10000
 TRAIL_SIMS = 3000  # fewer runs for the weekly history points
 
@@ -150,8 +161,7 @@ def build_season(season, data, rows, teams, league, prior_by_owner, live, days=N
                     th, ta = partial(h, sp0, d), partial(a, sp0, d)
                     res_cats = [cat_result(pct_value(th, c) if c in RATIO else th[c], pct_value(ta, c) if c in RATIO else ta[c], c) for c in cids]
                     lead = (sum(1 for v in res_cats if v == 1) - sum(1 for v in res_cats if v == -1) + len(cids)) / (2 * len(cids))
-                    strength_p = 1 / (1 + np.exp(-K * (strength[h] - strength[a])))
-                    probs[(r["mp"], h)] = 0.5 * strength_p + 0.5 * lead  # a simple blend: this week's category lead and the strength model
+                    probs[(r["mp"], h)] = daily_win_prob(d - sp0 + 1, K * (strength[h] - strength[a]), lead)
                 for r in live_rows:
                     daily_by_home[r["home"]].append(round(probs[(r["mp"], r["home"])], 4))
                 day_now = simulate(live_mp - 1, probs, TRAIL_SIMS)
