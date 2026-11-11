@@ -118,6 +118,23 @@ function simulateExpectedCatsWon(teamId, teamStrength, allTeams) {
   return +(total / opponents.length).toFixed(3);
 }
 
+function tradeSelections(teamAId, teamBId, pAIds, pBIds) {
+  // pAIds are the players Team A acquired, pBIds the players Team B acquired.
+  // Before the trade takes effect, the acquired players still sit on the
+  // sending rosters, so A sends pBIds and B sends pAIds. Once it takes
+  // effect they have flipped teams, and the loadable simulation is the
+  // reverse fixture: A sends the players it acquired. Pick whichever
+  // orientation matches the current rosters, so loading a completed trade
+  // never silently selects nobody.
+  const onA = new Set((S.rosters?.[String(teamAId)] || []).map((p) => p.id));
+  const preEffect = (pBIds || []).some((id) => onA.has(id));
+  const postEffect = (pAIds || []).some((id) => onA.has(id));
+  if (preEffect || !postEffect) {
+    return { sendA: new Set(pBIds || []), sendB: new Set(pAIds || []) };
+  }
+  return { sendA: new Set(pAIds || []), sendB: new Set(pBIds || []) };
+}
+
 function initTradeState(teams) {
   if (!S.trade) S.trade = {};
   const ids = teams.map((t) => t.id);
@@ -135,8 +152,10 @@ function initTradeState(teams) {
       if (match) {
         S.trade.teamA = match.team_a.id;
         S.trade.teamB = match.team_b.id;
-        S.trade.sendA = new Set(match.players_b.map((p) => p.id));
-        S.trade.sendB = new Set(match.players_a.map((p) => p.id));
+        const sel = tradeSelections(match.team_a.id, match.team_b.id,
+          match.players_a.map((p) => p.id), match.players_b.map((p) => p.id));
+        S.trade.sendA = sel.sendA;
+        S.trade.sendB = sel.sendB;
       }
     }
     S.trade.initialized = true;
@@ -222,10 +241,9 @@ window.loadTradeInMachine = (teamAId, teamBId, pAIds, pBIds) => {
   if (!S.trade) S.trade = {};
   S.trade.teamA = teamAId;
   S.trade.teamB = teamBId;
-  // Team A sent the players received by Team B
-  S.trade.sendA = new Set(pBIds || []);
-  // Team B sent the players received by Team A
-  S.trade.sendB = new Set(pAIds || []);
+  const sel = tradeSelections(teamAId, teamBId, pAIds, pBIds);
+  S.trade.sendA = sel.sendA;
+  S.trade.sendB = sel.sendB;
   setSub("teams", "trades");
   go("teams");
 };

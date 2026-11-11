@@ -43,6 +43,34 @@ def extract_player_stat(p, season):
     }
 
 
+def trade_key(team_a_id, team_b_id, ids_a, ids_b):
+    """Identity of a completed trade, independent of which ESPN id a source gave it."""
+    return (team_a_id, team_b_id, tuple(sorted(ids_a)), tuple(sorted(ids_b)))
+
+
+def match_trade_scoring_period(txs, when_ms):
+    """Scoring period of the trade a communication broadcast (type 244) belongs to.
+
+    The broadcast lands within milliseconds of the trade's TRADE_UPHOLD
+    transaction, but unrelated transactions often land inside any fixed time
+    window too: here a FUTURE_ROSTER lineup set for next week (scoring period
+    28) arrived 76 seconds after the broadcast, ahead of the uphold in the
+    list, and the old first-match-in-120s rule filed the trade under the wrong
+    week (Week 5 instead of Week 4). Prefer the closest trade transaction;
+    fall back to the closest transaction of any kind.
+    """
+    def closest(pool):
+        return min(pool, key=lambda t: abs(t.get("proposedDate", 0) - when_ms), default=None)
+
+    trade_txs = [t for t in txs
+                 if str(t.get("type", "")).startswith("TRADE")
+                 and abs(t.get("proposedDate", 0) - when_ms) < 600000]
+    match = closest(trade_txs)
+    if match is None:
+        match = closest([t for t in txs if abs(t.get("proposedDate", 0) - when_ms) < 120000])
+    return match.get("scoringPeriodId", 1) if match else 1
+
+
 def evaluate_trade(players_to_a, players_to_b):
     """Evaluate 9-cat head-to-head winner between two player packages."""
     stat_keys = {0: "pts", 6: "reb", 3: "ast", 2: "stl", 1: "blk", 17: "tpm", 11: "to"}
@@ -223,8 +251,7 @@ def build(season, raw_dir):
                 continue
             seen_trade_ids.add(top_id)
             top_date = top.get("date", 0)
-            matching_tx = next((t for t in txs if abs(t.get("proposedDate", 0) - top_date) < 120000), None)
-            sp = matching_tx.get("scoringPeriodId", 1) if matching_tx else 1
+            sp = match_trade_scoring_period(txs, top_date)
             mp = get_mp(sp)
             from_teams = {m["from"] for m in trade_msgs if m.get("from")}
             to_teams = {m["to"] for m in trade_msgs if m.get("to")}
@@ -257,6 +284,36 @@ def build(season, raw_dir):
                 entry = make_trade_entry(t_id, mp, t.get("proposedDate"), t_a, t_b, to_a, to_b)
                 completed_trades.append(entry)
                 weeks_trades.setdefault(str(mp), []).append(entry)
+
+    # ESPN's communication and transactions feeds are sliding windows. The
+    # two trades of Oct 28, 2026 rolled out of both within days, and because
+    # the payload was rebuilt from the current snapshot alone, trades.json
+    # went from 2 completed trades (Oct 29 commit) to 0 (Nov 3 commit).
+    # Archive the full receipt of every trade at first sight (data/raw is
+    # committed by the nightly data commit) and serve feed + archive, so a
+    # completed trade, once seen, is never lost again. Write-once: the
+    # archived receipt keeps the grades computed from the rosters and stats
+    # of its own day instead of being repriced against later rosters.
+    archive_path = raw_dir / str(season) / "completed_trades.json"
+    archived = []
+    if archive_path.exists():
+        archived = json.loads(archive_path.read_text(encoding="utf-8"))
+    by_key = {}
+    for e in archived:
+        by_key[trade_key(e["team_a"]["id"], e["team_b"]["id"],
+                         [p["id"] for p in e["players_a"]],
+                         [p["id"] for p in e["players_b"]])] = e
+    for entry in completed_trades:
+        key = trade_key(entry["team_a"]["id"], entry["team_b"]["id"],
+                        [p["id"] for p in entry["players_a"]],
+                        [p["id"] for p in entry["players_b"]])
+        by_key.setdefault(key, entry)
+    completed_trades = sorted(by_key.values(), key=lambda e: e["date"] or 0)
+    weeks_trades = {}
+    for entry in completed_trades:
+        weeks_trades.setdefault(str(entry["mp"]), []).append(entry)
+    if completed_trades != archived:
+        archive_path.write_text(json.dumps(completed_trades, separators=(",", ":")), encoding="utf-8")
 
     trades_payload = {
         "season": season,
