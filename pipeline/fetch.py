@@ -51,6 +51,17 @@ def has_category_data(league):
     )
 
 
+def _player_avgs(p):
+    """Season averages by stat id, in the compact shape the features read."""
+    avgs = {}
+    for s in p.get("stats", []):
+        if s.get("statSplitTypeId") in (0, 1, 2, 3) and s.get("averageStats"):
+            avgs[s["id"]] = {"avg": s["averageStats"], "gp": (s.get("stats") or {}).get("42")}
+        elif s.get("statSourceId") == 1 and s.get("statSplitTypeId") == 0 and s.get("averageStats"):
+            avgs[s["id"]] = {"avg": s["averageStats"], "gp": None}
+    return avgs
+
+
 def compact_roster(raw, season):
     """Current rosters: just what the projection needs."""
     out = {}
@@ -58,18 +69,33 @@ def compact_roster(raw, season):
         players = []
         for e in t.get("roster", {}).get("entries", []):
             p = e["playerPoolEntry"]["player"]
-            avgs = {}
-            for s in p.get("stats", []):
-                if s.get("statSplitTypeId") in (0, 1, 2, 3) and s.get("averageStats"):
-                    avgs[s["id"]] = {"avg": s["averageStats"], "gp": (s.get("stats") or {}).get("42")}
-                elif s.get("statSourceId") == 1 and s.get("statSplitTypeId") == 0 and s.get("averageStats"):
-                    avgs[s["id"]] = {"avg": s["averageStats"], "gp": None}
             players.append({
                 "id": e["playerId"], "name": p["fullName"], "pro": p.get("proTeamId"),
                 "slot": e["lineupSlotId"], "inj": e.get("injuryStatus") or p.get("injuryStatus"),
-                "pos": p.get("defaultPositionId"), "stats": avgs,
+                "pos": p.get("defaultPositionId"), "stats": _player_avgs(p),
             })
         out[str(t["id"])] = players
+    return out
+
+
+def compact_player_pool(raw):
+    """The league player pool in the same compact shape as roster entries.
+
+    A player who was just picked up and traded again before his add takes
+    effect is on no roster yet, so roster.json alone cannot resolve him;
+    the trades feature falls back to this pool instead of dropping him.
+    """
+    out = {}
+    for e in raw.get("players", []):
+        p = e.get("player") or {}
+        pid = e.get("id") or p.get("id")
+        if not pid or not p.get("fullName"):
+            continue
+        out[str(pid)] = {
+            "id": pid, "name": p["fullName"], "pro": p.get("proTeamId"),
+            "inj": p.get("injuryStatus"), "pos": p.get("defaultPositionId"),
+            "stats": _player_avgs(p),
+        }
     return out
 
 
@@ -156,6 +182,9 @@ def fetch_season(c, season):
     if season == CURRENT:
         sp = league.get("scoringPeriodId")
         _write(d / "roster.json", compact_roster(c.league(season, ["mRoster"], scoring_period=sp), season))
+        pool = c.players(season, scoring_period=sp, limit=1000)
+        if pool and "players" in pool:
+            _write(d / "players.json", compact_player_pool(pool))
         sched = compact_schedule(c.pro_schedule(season))
         _write(d / "proschedule.json", sched)
         # the official injury report: ESPN's flag is a snapshot, this is the list the teams submit (never fatal)

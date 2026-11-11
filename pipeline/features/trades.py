@@ -143,6 +143,30 @@ def build(season, raw_dir):
         for p_stat in team_players:
             player_map[p_stat["id"]] = p_stat
 
+    # Fallback for players who are on no roster in the snapshot above: a
+    # free agent picked up and traded again before the add takes effect
+    # (Keegan Murray, Nov 11, 2026) exists only in the player pool. A traded
+    # player must never be dropped silently: roster first, then the pool,
+    # then a flagged placeholder.
+    pool_path = raw_dir / str(season) / "players.json"
+    pool_map = {}
+    if pool_path.exists():
+        for pool_entry in json.loads(pool_path.read_text(encoding="utf-8")).values():
+            pool_map[pool_entry["id"]] = extract_player_stat(pool_entry, season)
+
+    def unknown_player(pid):
+        print(f"trades: player {pid} is on no roster and not in the player pool; using a placeholder")
+        return {"id": pid, "name": f"Player {pid}", "pos": "UTIL", "inj": None, "gp": 0,
+                "pts": 0.0, "reb": 0.0, "ast": 0.0, "stl": 0.0, "blk": 0.0, "tpm": 0.0,
+                "fg_pct": 0.0, "ft_pct": 0.0, "to": 0.0,
+                "fgm": 0.0, "fga": 0.0, "ftm": 0.0, "fta": 0.0}
+
+    def resolve_player(pid):
+        return player_map.get(pid) or pool_map.get(pid) or unknown_player(pid)
+
+    def is_placeholder(p):
+        return p["name"] == f"Player {p['id']}" and p["gp"] == 0 and p["pts"] == 0.0
+
     # Parse league team info for name lookups
     league_path = raw_dir / str(season) / "league.json"
     owners_path = ROOT / "config" / "owners.json"
@@ -189,7 +213,7 @@ def build(season, raw_dir):
             "strength": compute_team_strength(players),
         })
 
-    def make_trade_entry(trade_id, mp, date, t_a, t_b, to_a, to_b):
+    def make_trade_entry(trade_id, mp, date, t_a, t_b, to_a, to_b, incomplete=False):
         team_a_meta = teams_meta.get(t_a, {"id": t_a, "name": f"Team {t_a}", "owner": ""})
         team_b_meta = teams_meta.get(t_b, {"id": t_b, "name": f"Team {t_b}", "owner": ""})
         team_a_obj = next((t for t in all_teams if t["id"] == t_a), {
@@ -222,6 +246,7 @@ def build(season, raw_dir):
             "grade_b": analysis["grade_b"],
             "roster_adjustment": analysis["roster_adjustment"],
             "assumptions": analysis["assumptions"],
+            **({"incomplete": True} if incomplete else {}),
         }
 
     # Matchup week derivation
@@ -258,9 +283,10 @@ def build(season, raw_dir):
             team_ids = sorted(from_teams | to_teams)
             if len(team_ids) == 2:
                 t_a, t_b = team_ids[0], team_ids[1]
-                to_a = [player_map.get(m["targetId"]) for m in trade_msgs if m.get("to") == t_a and player_map.get(m["targetId"])]
-                to_b = [player_map.get(m["targetId"]) for m in trade_msgs if m.get("to") == t_b and player_map.get(m["targetId"])]
-                entry = make_trade_entry(top_id, mp, top_date, t_a, t_b, to_a, to_b)
+                to_a = [resolve_player(m["targetId"]) for m in trade_msgs if m.get("to") == t_a]
+                to_b = [resolve_player(m["targetId"]) for m in trade_msgs if m.get("to") == t_b]
+                incomplete = any(is_placeholder(p) for p in to_a + to_b)
+                entry = make_trade_entry(top_id, mp, top_date, t_a, t_b, to_a, to_b, incomplete)
                 completed_trades.append(entry)
                 weeks_trades.setdefault(str(mp), []).append(entry)
 
@@ -279,9 +305,10 @@ def build(season, raw_dir):
             team_ids = list(set([it["fromTeamId"] for it in trade_items] + [it["toTeamId"] for it in trade_items]))
             if len(team_ids) == 2:
                 t_a, t_b = team_ids[0], team_ids[1]
-                to_a = [player_map.get(it["playerId"]) for it in trade_items if it["toTeamId"] == t_a and player_map.get(it["playerId"])]
-                to_b = [player_map.get(it["playerId"]) for it in trade_items if it["toTeamId"] == t_b and player_map.get(it["playerId"])]
-                entry = make_trade_entry(t_id, mp, t.get("proposedDate"), t_a, t_b, to_a, to_b)
+                to_a = [resolve_player(it["playerId"]) for it in trade_items if it["toTeamId"] == t_a]
+                to_b = [resolve_player(it["playerId"]) for it in trade_items if it["toTeamId"] == t_b]
+                incomplete = any(is_placeholder(p) for p in to_a + to_b)
+                entry = make_trade_entry(t_id, mp, t.get("proposedDate"), t_a, t_b, to_a, to_b, incomplete)
                 completed_trades.append(entry)
                 weeks_trades.setdefault(str(mp), []).append(entry)
 
@@ -298,16 +325,35 @@ def build(season, raw_dir):
     archived = []
     if archive_path.exists():
         archived = json.loads(archive_path.read_text(encoding="utf-8"))
-    by_key = {}
+    # Supersede rule: a receipt stored from an incomplete snapshot must not
+    # freeze the error. The Nov 11, 2026 Gobert trade was first archived
+    # without Keegan Murray (see the pool fallback above), so when the same
+    # trade id comes back with more players, or complete instead of flagged
+    # incomplete, the new version replaces the stored one. A complete
+    # receipt of the same size is never overwritten: write-once stands.
+    def player_count(e):
+        return len(e.get("players_a", [])) + len(e.get("players_b", []))
+
+    def supersedes(new, old):
+        if player_count(new) != player_count(old):
+            return player_count(new) > player_count(old)
+        return bool(old.get("incomplete")) and not new.get("incomplete")
+
+    by_id = {}
     for e in archived:
-        by_key[trade_key(e["team_a"]["id"], e["team_b"]["id"],
-                         [p["id"] for p in e["players_a"]],
-                         [p["id"] for p in e["players_b"]])] = e
+        by_id[e["id"]] = e
     for entry in completed_trades:
-        key = trade_key(entry["team_a"]["id"], entry["team_b"]["id"],
-                        [p["id"] for p in entry["players_a"]],
-                        [p["id"] for p in entry["players_b"]])
-        by_key.setdefault(key, entry)
+        cur = by_id.get(entry["id"])
+        if cur is None or supersedes(entry, cur):
+            by_id[entry["id"]] = entry
+    by_key = {}
+    for e in by_id.values():
+        key = trade_key(e["team_a"]["id"], e["team_b"]["id"],
+                        [p["id"] for p in e["players_a"]],
+                        [p["id"] for p in e["players_b"]])
+        cur = by_key.get(key)
+        if cur is None or supersedes(e, cur):
+            by_key[key] = e
     completed_trades = sorted(by_key.values(), key=lambda e: e["date"] or 0)
     weeks_trades = {}
     for entry in completed_trades:
