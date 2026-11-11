@@ -43,6 +43,29 @@ def extract_player_stat(p, season):
     }
 
 
+def match_trade_scoring_period(txs, when_ms):
+    """Scoring period of the trade a communication broadcast (type 244) belongs to.
+
+    The broadcast lands within milliseconds of the trade's TRADE_UPHOLD
+    transaction, but unrelated transactions often land inside any fixed time
+    window too: here a FUTURE_ROSTER lineup set for next week (scoring period
+    28) arrived 76 seconds after the broadcast, ahead of the uphold in the
+    list, and the old first-match-in-120s rule filed the trade under the wrong
+    week (Week 5 instead of Week 4). Prefer the closest trade transaction;
+    fall back to the closest transaction of any kind.
+    """
+    def closest(pool):
+        return min(pool, key=lambda t: abs(t.get("proposedDate", 0) - when_ms), default=None)
+
+    trade_txs = [t for t in txs
+                 if str(t.get("type", "")).startswith("TRADE")
+                 and abs(t.get("proposedDate", 0) - when_ms) < 600000]
+    match = closest(trade_txs)
+    if match is None:
+        match = closest([t for t in txs if abs(t.get("proposedDate", 0) - when_ms) < 120000])
+    return match.get("scoringPeriodId", 1) if match else 1
+
+
 def evaluate_trade(players_to_a, players_to_b):
     """Evaluate 9-cat head-to-head winner between two player packages."""
     stat_keys = {0: "pts", 6: "reb", 3: "ast", 2: "stl", 1: "blk", 17: "tpm", 11: "to"}
@@ -223,8 +246,7 @@ def build(season, raw_dir):
                 continue
             seen_trade_ids.add(top_id)
             top_date = top.get("date", 0)
-            matching_tx = next((t for t in txs if abs(t.get("proposedDate", 0) - top_date) < 120000), None)
-            sp = matching_tx.get("scoringPeriodId", 1) if matching_tx else 1
+            sp = match_trade_scoring_period(txs, top_date)
             mp = get_mp(sp)
             from_teams = {m["from"] for m in trade_msgs if m.get("from")}
             to_teams = {m["to"] for m in trade_msgs if m.get("to")}
