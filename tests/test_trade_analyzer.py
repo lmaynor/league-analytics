@@ -15,7 +15,6 @@ from trade_analyzer import (
     GRADES,
     GRADE_RANKS,
     GRADE_THRESHOLDS,
-    GRADE_DESCRIPTIONS,
     score_to_grade,
     compare_grades,
     determine_trade_verdict,

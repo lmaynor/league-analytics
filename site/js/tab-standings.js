@@ -17,7 +17,7 @@ function power() {
   const d = D();
   const rows = [...d.standings].sort((a, b) => a.power - b.power);
   panel().innerHTML = `<h1>${d.season} Power Ranking</h1>
-    <div class="sub">60% season category win rate plus 40% last four weeks. It counts categories won, not just matchups.</div>
+    <div class="sub">60% season category win rate, 40% last four weeks.</div>
     <div class="card tbl-wrap" style="margin-top:12px"><table class="sortable">
       <tr><th class="rank">#</th><th class="l">Team</th><th>Score</th><th>Season Cat %</th><th>Last 4 Cat %</th><th>Standings</th></tr>
       ${rows.map((r) => `<tr><td class="rank">${r.power}</td><td class="l"><b>${esc(r.name)}</b><span class="sub">${esc(r.owner_name)}</span></td>

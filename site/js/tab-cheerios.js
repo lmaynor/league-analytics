@@ -2,7 +2,7 @@
 function cheerios() {
   const A = S.cheerios?.seasons || {};
   const years = Object.keys(A).sort();
-  if (!years.length) { panel().innerHTML = `<div class="empty"><h1>No Red Cheerios Yet</h1><p>This needs daily rosters. Run <code>pipeline/build.py --fetch</code> to pull them.</p></div>`; return; }
+  if (!years.length) { panel().innerHTML = `<div class="empty"><h1>No Red Cheerios Yet</h1><p>This view needs daily rosters, which the nightly refresh collects.</p></div>`; return; }
   if (S.season && A[String(S.season)]) S.regYear = String(S.season);
   if (!S.regYear || !A[S.regYear]) S.regYear = A[String(S.meta.current)] ? String(S.meta.current) : years[years.length - 1];
   const a = A[S.regYear];
@@ -16,7 +16,7 @@ function cheerios() {
         <td class="${t.wins_lost > 0 ? "pos" : ""}">${t.wins_lost}</td><td>${t.wins_gifted}</td><td data-v="${t.record[0]}">${rec(t.record)}</td><td data-v="${t.healthy_record[0]}">${rec(t.healthy_record)}</td>
         <td class="l mm-cell">${t.most_missed.length ? `<div class="mm">${t.most_missed.map((m) => `<span class="mchip" title="${esc(m.name)}">${esc(initialed(m.name))} <b>${m.games}</b></span>`).join("")}</div>` : '<span class="sub">None</span>'}</td></tr>`).join("")}
     </table></div>
-    <div class="sub" style="margin-top:6px">Wins lost: matchups that would have flipped in the team's favor, ties counting half. Wins gifted: wins that would have slipped away if the opponent's absences hadn't happened.</div>
+    <div class="sub" style="margin-top:6px">Wins gifted: wins that would have flipped if the opponent had been healthy. Ties count half.</div>
     ${a.ouch.length ? `<h2>Biggest Hits</h2><div class="card tbl-wrap"><table class="sortable">
       <tr><th class="l">When</th><th class="l">Team</th><th class="l">Opponent</th><th>Actual</th><th>Healthy</th><th>Games Missed</th><th class="l">Biggest Absences</th></tr>
       ${a.ouch.map((o) => `<tr><td class="l">${o.season} wk ${o.mp}${o.playoff ? " (playoffs)" : ""}</td><td class="l"><b>${esc(o.team)}</b></td><td class="l">${esc(o.opp)}</td><td>${o.actual}</td><td>${o.healthy}</td><td>${o.games}</td><td class="l sub">${o.players.map(esc).join(", ")}</td></tr>`).join("")}

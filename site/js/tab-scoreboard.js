@@ -115,7 +115,7 @@ function scoreboard() {
     body = `${tiles(list)}<div class="grid deck" id="deck" style="margin-top:12px">${w.matchups.map((m) => scoreCard(m, d, live(m))).join("")}</div>`;
   }
   panel().innerHTML = `${toggle}<h1>Week ${S.week} ${full ? "Sweat Board" : "Scoreboard"}</h1>
-    <div class="sub">${isLive ? "Live snapshot as of the last refresh." : S.week === d.current_mp ? "Current week." : "Final."}</div>${body}`;
+    ${isLive ? `<div class="sub">Live snapshot as of the last refresh.</div>` : S.week === d.current_mp ? "" : `<div class="sub">Final.</div>`}${body}`;
   wireDeck();
 }
 
@@ -129,7 +129,7 @@ function makeAwardCard({ badge, badgeClass = "", metric, title, subtitle, narrat
       <div class="award-title">${esc(title)}</div>
       <div class="award-subtitle">${esc(subtitle)}</div>
     </div>
-    <div class="award-narrative">${narrative}</div>
+    ${narrative ? `<div class="award-narrative">${narrative}</div>` : ""}
   </div>`;
 }
 
@@ -160,7 +160,7 @@ function weeklyRecap() {
       metric: `+${mvp.score.toFixed(1)} Rating`,
       title: mvp.name,
       subtitle: `${mvp.owner} · ${mvp.team}`,
-      narrative: `Started ${mvp.starts} games, setting the league high-water mark for weekly player performance.`
+      narrative: `Started ${mvp.starts} games.`
     }));
   }
 
@@ -283,8 +283,7 @@ function weeklyRecap() {
         badgeClass: "drama",
         metric: "1 Cat Margin",
         title: `${h.name} vs ${a.name}`,
-        subtitle: `Final: ${closest.hw}–${closest.aw}${closest.t ? `–${closest.t}` : ""}`,
-        narrative: "A down-to-the-wire cardiac sweat that was decided by the skin of their teeth on Sunday night."
+        subtitle: `Final: ${closest.hw}–${closest.aw}${closest.t ? `–${closest.t}` : ""}`
       }));
     }
 
@@ -297,8 +296,7 @@ function weeklyRecap() {
         badgeClass: "good",
         metric: `+${Math.abs(biggest.hw - biggest.aw)} Cat Victory`,
         title: `${winner.name} over ${loser.name}`,
-        subtitle: `Final: ${Math.max(biggest.hw, biggest.aw)}–${Math.min(biggest.hw, biggest.aw)}`,
-        narrative: "A ruthless, lopsided statement win that completely dismantled the opponent from day one."
+        subtitle: `Final: ${Math.max(biggest.hw, biggest.aw)}–${Math.min(biggest.hw, biggest.aw)}`
       }));
     }
   }
@@ -323,7 +321,7 @@ function weeklyRecap() {
       metric: `${maxAbsences} Missed Starts`,
       title: icuTeam.name,
       subtitle: `${icuTeam.owner_name} · Injury Ward`,
-      narrative: `Hit hardest by the injury bug with ${maxAbsences} missed starter games (${icuNames.slice(0, 3).join(", ")}).`
+      narrative: `Out: ${icuNames.slice(0, 3).join(", ")}.`
     }));
   }
 
@@ -342,7 +340,7 @@ function weeklyRecap() {
       badgeClass: v.outcome === "clear_win" ? "drama" : v.outcome === "win_win" ? "good" : "drama",
       metric: `${ga.grade || "C"} vs ${gb.grade || "C"}`,
       title: `${tr.team_a.name} ⇄ ${tr.team_b.name}`,
-      subtitle: cls.headline || `${tr.team_a.owner || tr.team_a.name} & ${tr.team_b.owner || tr.team_b.name}`,
+      subtitle: `${tr.team_a.owner || tr.team_a.name} & ${tr.team_b.owner || tr.team_b.name}`,
       narrative: `${cls.roast ? `${esc(cls.roast)} ` : ""}Verdict: <b>${esc(v.outcome_label || "Fair Trade")}</b> (${esc(v.margin_str || tr.margin)}).`
     }));
   }
@@ -363,7 +361,7 @@ function weeklyRecap() {
 
   panel().innerHTML = `<div class="toolbar">${picker}</div>
     <h1>Week ${S.week} Recap</h1>
-    <div class="sub">${isLive ? "In-progress week. Awards finalize when all games finish." : "Weekly awards, hindsight blunders, and category debriefs."}</div>
+    ${isLive ? `<div class="sub">In-progress week. Awards finalize when all games finish.</div>` : ""}
     <div class="awards-grid">
       ${cards.join("")}
     </div>
@@ -379,7 +377,6 @@ function tradesDebrief(mp) {
     return `<div class="card" style="margin-top:10px;padding:12px 14px;display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center">
       <div>
         <b>No trades completed in Week ${mp}</b>
-        <div class="sub">Simulate prospective player swaps and 9-category impact in the Trade Machine.</div>
       </div>
       <button class="pill" style="cursor:pointer;padding:5px 12px;font-size:12px;background:var(--color-key-face);border:1px solid var(--color-rule-2);color:var(--text)" onclick="setSub('teams','trades');go('teams')">Trade Machine →</button>
     </div>`;
@@ -417,7 +414,6 @@ function tradesDebrief(mp) {
 
       ${cls.roast ? `
         <div class="receipt-quote-box">
-          <div class="receipt-headline">${esc(cls.headline || "")}</div>
           <div class="receipt-roast">${esc(cls.roast)}</div>
         </div>` : ""}
 
