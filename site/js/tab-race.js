@@ -44,7 +44,7 @@ const MARKETS = {
     key: "playoffs",
     label: "Playoffs (Top 4)",
     title: "Playoff Odds (Top 4)",
-    desc: "Simulated probability of clinching a top-4 playoff berth. 50% is the bubble cutoff.",
+    desc: "Simulated probability of clinching a top-4 playoff berth.",
     series: (t) => t.trail_playoffs || (t.finish ? [t.finish.slice(0, 4).reduce((a, b) => a + b, 0)] : [t.p_playoffs || 0]),
     current: (t) => t.p_playoffs ?? (t.finish ? t.finish.slice(0, 4).reduce((a, b) => a + b, 0) : 0),
     sort: (a, b) => (b.p_playoffs ?? 0) - (a.p_playoffs ?? 0) || b.proj_wins - a.proj_wins,
@@ -307,7 +307,6 @@ function race() {
     <div class="card market" id="market" style="margin-top:14px"></div>
 
     <div class="card tbl-wrap" id="race-table-wrap" style="margin-top:14px"></div>
-    <div class="sub" style="margin-top:8px">Trail sparklines track movement over time for the active prediction market above. Click any column header to sort.</div>
   `;
 
   S.raceFocus = null;

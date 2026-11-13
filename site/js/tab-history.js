@@ -62,6 +62,6 @@ function histH2H(H, owners) {
     <div class="card">${rows.map((r) => { const n = r.w + r.l + r.t; return `<div class="h2h"><span class="nm">${esc(r.o.name)}</span>
       <span class="bar" style="width:${n / mx * 100}%"><i class="w" style="flex:${r.w}"></i><i class="t" style="flex:${r.t}"></i><i class="l" style="flex:${r.l}"></i></span>
       <span class="rec ${r.w > r.l ? "pos" : r.w < r.l ? "neg" : ""}">${r.w}-${r.l}${r.t ? `-${r.t}` : ""}</span></div>`; }).join("")}</div>
-    <div class="sub" style="margin-top:6px">Matchup record against each owner, all seasons including playoffs. Cobalt = wins, grey = losses.</div>`;
+    <div class="sub" style="margin-top:6px">All seasons, playoffs included. Cobalt = wins, grey = losses.</div>`;
 }
 TABS.history = history;

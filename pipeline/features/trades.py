@@ -227,6 +227,19 @@ def build(season, raw_dir):
 
         analysis = analyze_trade(team_a_obj, team_b_obj, to_a, to_b, all_teams, rep_player)
 
+        # Copy that must not reach the site (clean-copy review, Nov 12, 2026):
+        # a receipt showed classification name, headline and roast, three
+        # layers of the same joke. The catalog still generates headlines;
+        # the payload drops headline and desc. Grade descriptions were
+        # deleted at the source in trade_analyzer.py; filtering them here
+        # too is belt and braces.
+        verdict = json.loads(json.dumps(analysis["verdict"]))
+        cls = verdict.get("classification") or {}
+        cls.pop("headline", None)
+        cls.pop("desc", None)
+        grade_a = {k: v for k, v in analysis["grade_a"].items() if k not in ("description", "desc")}
+        grade_b = {k: v for k, v in analysis["grade_b"].items() if k not in ("description", "desc")}
+
         return {
             "id": trade_id,
             "mp": mp,
@@ -241,9 +254,9 @@ def build(season, raw_dir):
             "margin": analysis["verdict"]["margin_str"],
             "deltas": analysis["deltas_a"],
             "deltas_b": analysis["deltas_b"],
-            "verdict": analysis["verdict"],
-            "grade_a": analysis["grade_a"],
-            "grade_b": analysis["grade_b"],
+            "verdict": verdict,
+            "grade_a": grade_a,
+            "grade_b": grade_b,
             "roster_adjustment": analysis["roster_adjustment"],
             "assumptions": analysis["assumptions"],
             **({"incomplete": True} if incomplete else {}),
@@ -323,8 +336,17 @@ def build(season, raw_dir):
     # of its own day instead of being repriced against later rosters.
     archive_path = raw_dir / str(season) / "completed_trades.json"
     archived = []
+    scrubbed = False
     if archive_path.exists():
         archived = json.loads(archive_path.read_text(encoding="utf-8"))
+        for e in archived:
+            cls = (e.get("verdict") or {}).get("classification") or {}
+            scrubbed |= cls.pop("headline", None) is not None
+            scrubbed |= cls.pop("desc", None) is not None
+            for gk in ("grade_a", "grade_b"):
+                g = e.get(gk) or {}
+                scrubbed |= g.pop("description", None) is not None
+                scrubbed |= g.pop("desc", None) is not None
     # Supersede rule: a receipt stored from an incomplete snapshot must not
     # freeze the error. The Nov 11, 2026 Gobert trade was first archived
     # without Keegan Murray (see the pool fallback above), so when the same
@@ -358,7 +380,7 @@ def build(season, raw_dir):
     weeks_trades = {}
     for entry in completed_trades:
         weeks_trades.setdefault(str(entry["mp"]), []).append(entry)
-    if completed_trades != archived:
+    if completed_trades != archived or scrubbed:
         archive_path.write_text(json.dumps(completed_trades, separators=(",", ":")), encoding="utf-8")
 
     trades_payload = {

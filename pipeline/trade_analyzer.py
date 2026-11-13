@@ -37,23 +37,6 @@ GRADE_THRESHOLDS: List[Tuple[str, float]] = [
     ("F-", -float("inf")),
 ]
 
-GRADE_DESCRIPTIONS: Dict[str, str] = {
-    "A+": "Franchise-altering win. Massive projected improvement across multiple categories.",
-    "A":  "Excellent trade. Substantial, decisive advantage for this manager.",
-    "A-": "Strong win. Notable edge with minimal meaningful downside.",
-    "B+": "Very good deal. Meaningful improvement in category fit and weekly win rate.",
-    "B":  "Good deal. Clear positive outcome and positive roster trajectory.",
-    "B-": "Slight win. Modest net improvement with manageable trade-offs.",
-    "C+": "Solid deal. Defensible value where both sides find reasonable utility.",
-    "C":  "Fair trade. Balanced value or near-zero marginal change in outlook.",
-    "C-": "Slight loss. Surrendered modest expected value, but damage is limited.",
-    "D+": "Disappointing deal. The roster outlook deteriorates with questionable returns.",
-    "D":  "Bad trade. Clear negative impact on weekly category competitiveness.",
-    "D-": "Major miscalculation. Substantial decline across core category strengths.",
-    "F+": "Near-disaster. Severe value destruction, saved only by residual depth.",
-    "F":  "Disasterclass. Devastating loss of category equity with few compensating benefits.",
-    "F-": "All-time blunder candidate. Lopsided destruction of franchise championship equity.",
-}
 
 # Empirical standard deviations of matchup margin differences in 9-cat H2H
 CAT_SIGMAS: Dict[int, float] = {
@@ -234,7 +217,6 @@ def analyze_manager_grade(
     delta_x = round(x_post - x_pre, 3)
 
     grade = score_to_grade(delta_x)
-    grade_desc = GRADE_DESCRIPTIONS.get(grade, "")
 
     gained_cats = []
     lost_cats = []
@@ -294,8 +276,6 @@ def analyze_manager_grade(
         "delta_cats": delta_x,
         "x_pre": x_pre,
         "x_post": x_post,
-        "description": grade_desc,
-        "desc": grade_desc,
         "gained_cats": gained_cats,
         "lost_cats": lost_cats,
         "best_cat": best_cat,

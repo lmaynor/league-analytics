@@ -7,7 +7,7 @@ function cats() {
     return z >= 0 ? `color-mix(in oklch, var(--heat-good) ${a * 100}%, transparent)` : `color-mix(in oklch, var(--heat-bad) ${a * 80}%, transparent)`;
   };
   panel().innerHTML = `<h1>${d.season} Category Strength</h1>
-    <div class="sub">Per-week average for each category, with league rank. Color shows how far above or below the league average (turnovers are flipped: low is good).</div>
+    <div class="sub">Color shows distance from the league average. Turnovers are flipped: low is good.</div>
     <div class="card tbl-wrap" style="margin-top:12px"><table class="catgrid">
       <tr><th class="l team">Team</th>${d.cats.map((c) => `<th class="c">${c.label}</th>`).join("")}</tr>
       ${rows.map((r) => `<tr><td class="l team"><b>${esc(r.name)}</b><span class="sub">${esc(r.owner_name)}</span></td>${d.cats.map((c) => {

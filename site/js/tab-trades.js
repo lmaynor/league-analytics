@@ -26,23 +26,6 @@ const GRADE_THRESHOLDS = [
   ["F-", -Infinity]
 ];
 
-const GRADE_DESCRIPTIONS = {
-  "A+": "Franchise-altering win. Massive projected improvement across multiple categories.",
-  "A":  "Excellent trade. Substantial, decisive advantage for this manager.",
-  "A-": "Strong win. Notable edge with minimal meaningful downside.",
-  "B+": "Very good deal. Meaningful improvement in category fit and weekly win rate.",
-  "B":  "Good deal. Clear positive outcome and positive roster trajectory.",
-  "B-": "Slight win. Modest net improvement with manageable trade-offs.",
-  "C+": "Solid deal. Defensible value where both sides find reasonable utility.",
-  "C":  "Fair trade. Balanced value or near-zero marginal change in outlook.",
-  "C-": "Slight loss. Surrendered modest expected value, but damage is limited.",
-  "D+": "Disappointing deal. The roster outlook deteriorates with questionable returns.",
-  "D":  "Bad trade. Clear negative impact on weekly category competitiveness.",
-  "D-": "Major miscalculation. Substantial decline across core category strengths.",
-  "F+": "Near-disaster. Severe value destruction, saved only by residual depth.",
-  "F":  "Disasterclass. Devastating loss of category equity with few compensating benefits.",
-  "F-": "All-time blunder candidate. Lopsided destruction of franchise championship equity."
-};
 
 const CAT_SIGMAS = {
   0: 75.0, 6: 30.0, 3: 28.0, 2: 9.0, 1: 8.5,
@@ -193,7 +176,6 @@ function trades() {
   const hasSelection = selA.length > 0 || selB.length > 0;
 
   panel().innerHTML = `<h1>Trade Machine</h1>
-    <div class="sub">15-tier letter grades, probabilistic 9-cat simulation, replacement-level waiver math, and shareable trade receipts.</div>
     <div class="trade-cols" style="margin-top:14px">
       <div class="card tr-side">
         <div class="tr-head">
@@ -213,7 +195,7 @@ function trades() {
     ${hasSelection ? renderTradeImpact(tA, tB, selA, selB, d, rosters) : `
       <div class="card empty" style="margin-top:14px">
         <h3>Select Players to Simulate</h3>
-        <p class="sub">Choose players on one or both sides to simulate marginal category shifts, letter grades, and deterministic trade verdicts.</p>
+        <p class="sub">Choose players on one or both sides.</p>
       </div>`}
     <h2 style="margin-top:32px">Completed Trades & Trade Receipts</h2>
     ${renderCompletedTradesList()}`;
@@ -503,7 +485,6 @@ function renderTradeImpact(tA, tB, selA, selB, d, rosters) {
       </div>
 
       <div class="receipt-quote-box">
-        <div class="receipt-headline">${esc(clsHeadline)}</div>
         <div class="receipt-roast">${esc(clsRoast)}</div>
       </div>
 
@@ -516,11 +497,8 @@ function renderTradeImpact(tA, tB, selA, selB, d, rosters) {
             </div>
             <span class="grade-badge lg ${gradeClass(gradeA)}">${gradeA}</span>
           </div>
-          <div style="font-size:12px;color:var(--muted);margin-top:2px">
-            ${GRADE_DESCRIPTIONS[gradeA] || ""}
-          </div>
           <div style="font-size:12px;color:var(--color-ink);display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-top:4px">
-            <span>Marginal Impact: <b>${deltaXA > 0 ? `+${deltaXA.toFixed(2)}` : deltaXA.toFixed(2)} cats/wk</b></span>
+            <span>Weekly Net: <b>${deltaXA > 0 ? `+${deltaXA.toFixed(2)}` : deltaXA.toFixed(2)} cats/wk</b></span>
             <span>Confidence: <b>${hasInj ? "Medium" : "High"}</b></span>
           </div>
           <div style="font-size:11.5px;color:var(--color-ink-2);margin-top:4px">
@@ -539,11 +517,8 @@ function renderTradeImpact(tA, tB, selA, selB, d, rosters) {
             </div>
             <span class="grade-badge lg ${gradeClass(gradeB)}">${gradeB}</span>
           </div>
-          <div style="font-size:12px;color:var(--muted);margin-top:2px">
-            ${GRADE_DESCRIPTIONS[gradeB] || ""}
-          </div>
           <div style="font-size:12px;color:var(--color-ink);display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-top:4px">
-            <span>Marginal Impact: <b>${deltaXB > 0 ? `+${deltaXB.toFixed(2)}` : deltaXB.toFixed(2)} cats/wk</b></span>
+            <span>Weekly Net: <b>${deltaXB > 0 ? `+${deltaXB.toFixed(2)}` : deltaXB.toFixed(2)} cats/wk</b></span>
             <span>Confidence: <b>${hasInj ? "Medium" : "High"}</b></span>
           </div>
           <div style="font-size:11.5px;color:var(--color-ink-2);margin-top:4px">
@@ -563,8 +538,7 @@ function renderCompletedTradesList() {
   const completed = S.trades?.completed || [];
   if (!completed.length) {
     return `<div class="card empty" style="margin-top:10px">
-      <h3>No Executed Trades Yet</h3>
-      <p class="sub">Completed deals in this league will automatically appear here with full letter grades and roasted trade receipts.</p>
+      <h3>No completed trades yet</h3>
     </div>`;
   }
 
@@ -590,12 +564,11 @@ function renderCompletedTradesList() {
           <b>${esc(cls.name || "Trade Receipt")}</b>
           ${tagsHtml}
         </div>
-        <button class="pill" style="cursor:pointer;padding:4px 10px;font-size:12px;background:var(--color-key-face);border:1px solid var(--color-rule-2);color:var(--text)" onclick='loadTradeInMachine(${t.team_a.id}, ${t.team_b.id}, ${pAIds}, ${pBIds})'>Load in Simulator →</button>
+        <button class="pill" style="cursor:pointer;padding:4px 10px;font-size:12px;background:var(--color-key-face);border:1px solid var(--color-rule-2);color:var(--text)" onclick='loadTradeInMachine(${t.team_a.id}, ${t.team_b.id}, ${pAIds}, ${pBIds})'>Load in Trade Machine →</button>
       </div>
 
       ${cls.roast ? `
         <div class="receipt-quote-box">
-          <div class="receipt-headline">${esc(cls.headline || "")}</div>
           <div class="receipt-roast">${esc(cls.roast)}</div>
         </div>` : ""}
 
