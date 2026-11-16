@@ -2,6 +2,7 @@
    categories and who plays tonight. Auto picks Full on the final day of the week. */
 const todayET = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
 const isFinalDay = (L) => !!(L?.active && (L.final_day || L.end_date === todayET()));
+const weekDone = (w) => !!w && w.matchups.length > 0 && w.matchups.every((m) => (m.hw + m.aw + (m.t || 0)) >= 9);
 function detailMode(L) {
   const pref = store.get("detail", "auto");
   return pref === "auto" ? (isFinalDay(L) ? "full" : "compact") : pref;
@@ -101,7 +102,7 @@ function scoreboard() {
   const pref = store.get("detail", "auto");
   const full = isLive && detailMode(L) === "full" && L.matchups.some((m) => !m.hidden);  // nothing to show in Full until a matchup's odds unlock
   const seg = isLive ? `<div class="seg">${[["auto", "Auto"], ["compact", "Compact"], ["full", "Full"]].map(([k, l]) => `<button class="${pref === k ? "on" : ""}" onclick="setDetail('${k}')">${l}</button>`).join("")}</div>` : "";
-  const weekName = (w) => `Week ${w.mp}${w.matchups[0]?.tier?.startsWith("WINNERS") ? " (Playoffs)" : ""}${w.mp === d.current_mp ? (L?.active && L.mp === w.mp ? " (Live)" : " (Current)") : ""}`;
+  const weekName = (w) => `Week ${w.mp}${w.matchups[0]?.tier?.startsWith("WINNERS") ? " (Playoffs)" : ""}${w.mp === d.current_mp ? (L?.active && L.mp === w.mp ? " (Live)" : weekDone(w) ? " (Final)" : " (Current)") : ""}`;
   const picker = `<label class="wksel">Week <select onchange="S.week=+this.value;scoreboard()" aria-label="Choose a week">${[...d.weeks].reverse().map((w) => `<option value="${w.mp}"${w.mp === S.week ? " selected" : ""}>${weekName(w)}</option>`).join("")}</select></label>`;
   const toggle = `<div class="toolbar">${seg}${picker}</div>`;
   let body;
@@ -115,7 +116,7 @@ function scoreboard() {
     body = `${tiles(list)}<div class="grid deck" id="deck" style="margin-top:12px">${w.matchups.map((m) => scoreCard(m, d, live(m))).join("")}</div>`;
   }
   panel().innerHTML = `${toggle}<h1>Week ${S.week} ${full ? "Sweat Board" : "Scoreboard"}</h1>
-    ${isLive ? `<div class="sub">Live snapshot as of the last refresh.</div>` : S.week === d.current_mp ? "" : `<div class="sub">Final.</div>`}${body}`;
+    ${isLive ? `<div class="sub">Live snapshot as of the last refresh.</div>` : S.week === d.current_mp ? (weekDone(w) ? `<div class="sub">Final.</div>` : "") : `<div class="sub">Final.</div>`}${body}`;
   wireDeck();
 }
 
@@ -142,7 +143,7 @@ function weeklyRecap() {
   }
   const w = d.weeks.find((x) => x.mp === S.week);
   const isLive = !!(L?.active && L.mp === S.week);
-  const weekName = (wk) => `Week ${wk.mp}${wk.matchups[0]?.tier?.startsWith("WINNERS") ? " (Playoffs)" : ""}${wk.mp === d.current_mp ? (L?.active && L.mp === wk.mp ? " (Live)" : " (Current)") : ""}`;
+  const weekName = (wk) => `Week ${wk.mp}${wk.matchups[0]?.tier?.startsWith("WINNERS") ? " (Playoffs)" : ""}${wk.mp === d.current_mp ? (L?.active && L.mp === wk.mp ? " (Live)" : weekDone(wk) ? " (Final)" : " (Current)") : ""}`;
   const picker = `<label class="wksel">Week <select onchange="S.week=+this.value;weeklyRecap()" aria-label="Choose a week">${[...d.weeks].reverse().map((wk) => `<option value="${wk.mp}"${wk.mp === S.week ? " selected" : ""}>${weekName(wk)}</option>`).join("")}</select></label>`;
 
   const currSeason = String(S.season || S.meta.current);

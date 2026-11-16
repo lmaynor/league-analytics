@@ -252,6 +252,14 @@ def update_win_chance_log(log_path, payload):
     return points
 
 
+def week_is_done(cur_sp, end_sp, rem):
+    """Final day with nothing left to play. ESPN keeps currentMatchupPeriod
+    on the finished week until it flips overnight, so without this check the
+    site presents a completed week as live for hours after Sunday's last
+    game, the highest-traffic window of the week."""
+    return cur_sp == end_sp and not rem
+
+
 def build(league, season_data, roster, sched, now_ms=None, injuries_doc=None):
     if not roster or not sched:
         return {"active": False}
@@ -263,6 +271,8 @@ def build(league, season_data, roster, sched, now_ms=None, injuries_doc=None):
         return {"active": False}
     cur_sp, end_sp, date_of = week_days(league, sched, None)
     rem = remaining_games(sched, cur_sp, end_sp, now_ms)
+    if week_is_done(cur_sp, end_sp, rem):
+        return {"active": False}  # week closed: final day, every game final
     abbrev = sched["teams"]
     rng = np.random.default_rng(7)
     cids = [c["id"] for c in season_data["cats"]]
