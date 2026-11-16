@@ -161,7 +161,7 @@ function weeklyRecap() {
       metric: `+${mvp.score.toFixed(1)} Rating`,
       title: mvp.name,
       subtitle: `${mvp.owner} · ${mvp.team}`,
-      narrative: `Started ${mvp.starts} games.`
+      narrative: `Started ${mvp.starts} games, setting the league high-water mark for weekly player performance.`
     }));
   }
 
@@ -284,7 +284,8 @@ function weeklyRecap() {
         badgeClass: "drama",
         metric: "1 Cat Margin",
         title: `${h.name} vs ${a.name}`,
-        subtitle: `Final: ${closest.hw}–${closest.aw}${closest.t ? `–${closest.t}` : ""}`
+        subtitle: `Final: ${closest.hw}–${closest.aw}${closest.t ? `–${closest.t}` : ""}`,
+        narrative: "A down-to-the-wire cardiac sweat that was decided by the skin of their teeth on Sunday night."
       }));
     }
 
@@ -297,7 +298,8 @@ function weeklyRecap() {
         badgeClass: "good",
         metric: `+${Math.abs(biggest.hw - biggest.aw)} Cat Victory`,
         title: `${winner.name} over ${loser.name}`,
-        subtitle: `Final: ${Math.max(biggest.hw, biggest.aw)}–${Math.min(biggest.hw, biggest.aw)}`
+        subtitle: `Final: ${Math.max(biggest.hw, biggest.aw)}–${Math.min(biggest.hw, biggest.aw)}`,
+        narrative: "A ruthless, lopsided statement win that completely dismantled the opponent from day one."
       }));
     }
   }
@@ -322,7 +324,7 @@ function weeklyRecap() {
       metric: `${maxAbsences} Missed Starts`,
       title: icuTeam.name,
       subtitle: `${icuTeam.owner_name} · Injury Ward`,
-      narrative: `Out: ${icuNames.slice(0, 3).join(", ")}.`
+      narrative: `Hit hardest by the injury bug with ${maxAbsences} missed starter games (${icuNames.slice(0, 3).join(", ")}).`
     }));
   }
 
