@@ -287,4 +287,15 @@ def build(per_season, raw, live):
             except Exception:  # no roster or report: fall back to results alone
                 health = None
         seasons[str(season)] = build_season(season, data, rows, teams, league, prior, live, load_days(raw, season) if season == CURRENT else None, health)
+    # Intraday win-chance snapshots for the current day, logged by the live
+    # build (features/live.py). Only the live week's log for the live scoring
+    # period counts; the daily replay in matchup_daily covers finished days.
+    if str(CURRENT) in seasons and live.get("active"):
+        try:
+            log = json.loads((raw / str(CURRENT) / "win_chance_log.json").read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            log = {}
+        if log.get("mp") == live.get("mp") and log.get("sp") == live.get("cur_sp"):
+            seasons[str(CURRENT)]["matchup_live_trail"] = {
+                h: [p for _, p in pts] for h, pts in (log.get("points") or {}).items()}
     return {"seasons": seasons, "k": K}

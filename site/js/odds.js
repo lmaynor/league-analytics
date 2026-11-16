@@ -25,18 +25,24 @@ window.setSort = (v) => { S.sort = v; scoreboard(); };
 window.jump = (i) => goCard(i);
 window.toggle = (key) => { S.open.has(key) ? S.open.delete(key) : S.open.add(key); scoreboard(); };
 
-/* Rolling win chance for this matchup, day by day (only shown once its odds are public) */
+/* Rolling win chance for this matchup (only shown once its odds are public).
+   One point per finished day from the daily replay, then today's logged
+   snapshots: a new point lands only when the chance moves, so dead hours
+   add nothing and the evenly spaced axis never shows a flat overnight run. */
 function rollChart(m) {
-  const daily = S.race?.seasons?.[S.meta.current]?.matchup_daily?.[m.home] || [];
-  const pts = [...daily, m.p_home_win].filter((v) => v != null);
+  const season = S.race?.seasons?.[S.meta.current] || {};
+  const daily = season.matchup_daily?.[m.home] || [];
+  const intra = season.matchup_live_trail?.[m.home] || [];
+  const raw = [...daily, ...intra, m.p_home_win].filter((v) => v != null);
+  const pts = raw.filter((v, i) => i === 0 || v !== raw[i - 1]);
   if (pts.length < 2 || m.hidden) return "";
   const W = 300, H = 72, P = 8;
   const x = (i) => P + (i / (pts.length - 1)) * (W - 2 * P);
   const y = (p) => P + (1 - p) * (H - 2 * P);
   const path = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p).toFixed(1)}`).join(" ");
   const last = pts[pts.length - 1];
-  return `<div class="roll"><div class="roll-head"><span>${esc(m.home_name)} win chance, day by day</span><b>${pct(last)}</b></div>
-    <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img" aria-label="${esc(m.home_name)} win chance by day">
+  return `<div class="roll"><div class="roll-head"><span>${esc(m.home_name)} win chance this week</span><b>${pct(last)}</b></div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img" aria-label="${esc(m.home_name)} win chance this week">
       <line x1="${P}" x2="${W - P}" y1="${y(0.5)}" y2="${y(0.5)}" class="roll-mid"/>
       <path d="${path}" fill="none" stroke="var(--color-accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
       <circle cx="${x(pts.length - 1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="3.5" fill="var(--color-accent)"/></svg></div>`;

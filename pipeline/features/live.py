@@ -6,7 +6,9 @@ mid-week swaps), with negative-binomial-ish game-to-game spread. FG%/FT% are sim
 from makes and attempts, so a late high-volume shooter moves them the right amount.
 """
 import datetime as dt
+import json
 import time
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import numpy as np
@@ -207,6 +209,47 @@ def hide(mm, lock):
     return {"hidden": True, "lock": lock, "home": mm["home"], "away": mm["away"], "home_name": mm["home_name"], "away_name": mm["away_name"],
             "home_owner": mm["home_owner"], "away_owner": mm["away_owner"], "now": mm["now"],
             "cats": [{k: c[k] for k in ("id", "label", "reverse", "hv", "av")} for c in mm["cats"]]}
+
+
+# Rolling win-chance log (Nov 15, 2026): the Scoreboard chart steps once per
+# day from replayed daily stats, which is too coarse on a game night. Each
+# build appends the live win chance to data/raw/<season>/win_chance_log.json,
+# but only when the number has actually moved at least a point and at least
+# 15 minutes have passed, so dead hours (overnight, no games) add no points
+# and the chart's evenly spaced axis never shows a flat overnight stretch.
+# The log holds one scoring day: a new day or a new week resets it, and the
+# daily replay takes over for finished days.
+LOG_MIN_GAP_MS = 15 * 60 * 1000
+LOG_MIN_MOVE = 0.01
+LOG_MAX_POINTS = 200
+
+
+def update_win_chance_log(log_path, payload):
+    """Append moved win chances from a live payload to the log; returns points."""
+    if not payload or not payload.get("active"):
+        return {}
+    log = {}
+    if Path(log_path).exists():
+        try:
+            log = json.loads(Path(log_path).read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            log = {}
+    if log.get("mp") != payload["mp"] or log.get("sp") != payload["cur_sp"]:
+        log = {"mp": payload["mp"], "sp": payload["cur_sp"], "points": {}}
+    points = log.setdefault("points", {})
+    changed = False
+    for m in payload.get("matchups", []):
+        if m.get("hidden") or m.get("p_home_win") is None:
+            continue
+        pts = points.setdefault(str(m["home"]), [])
+        p, ts = m["p_home_win"], payload["asof_ms"]
+        if not pts or (ts - pts[-1][0] >= LOG_MIN_GAP_MS and abs(p - pts[-1][1]) >= LOG_MIN_MOVE):
+            pts.append([ts, p])
+            del pts[:-LOG_MAX_POINTS]
+            changed = True
+    if changed:
+        Path(log_path).write_text(json.dumps(log, separators=(",", ":")), encoding="utf-8")
+    return points
 
 
 def build(league, season_data, roster, sched, now_ms=None, injuries_doc=None):

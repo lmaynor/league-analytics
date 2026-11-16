@@ -111,6 +111,8 @@ def main():
         out = live.build(league, per_season[CURRENT][0], read(RAW / str(CURRENT) / "roster.json"),
                          read(RAW / str(CURRENT) / "proschedule.json"), injuries_doc=injuries.load(RAW / str(CURRENT)))
         live_out.update(out or {})
+        if out and out.get("active"):
+            live.update_win_chance_log(RAW / str(CURRENT) / "win_chance_log.json", out)
         return {"live.json": out or {"active": False}}
     written += run("live", only, do_live)
     written += run("cheerios", only, lambda: {"cheerios.json": cheerios.build(per_season, RAW)})
