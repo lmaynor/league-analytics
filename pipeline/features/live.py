@@ -58,6 +58,25 @@ def week_days(league, sched, matchup_row_home):
     return cur_sp, end, date_of
 
 
+def effective_sp(cur_sp, end_sp, sched, now_ms, date_of):
+    """The scoring day the page should treat as today.
+
+    ESPN's scoringPeriodId can lag the calendar (it was still Saturday at
+    Sunday noon of Week 5, so the player chips listed Saturday's finished
+    games under a header counting Sunday's remaining ones). The schedule
+    knows what day it is: advance once every game on ESPN's day is final
+    and the calendar has moved past it. Never past the week's last day,
+    and never while a game on the current day is still in play.
+    """
+    today = dt.datetime.fromtimestamp(now_ms / 1000, ET).date()
+    eff = cur_sp
+    while eff < end_sp and date_of(eff + 1) <= today:
+        if any(g["sp"] == eff and game_state(g, now_ms) != "final" for g in sched["games"]):
+            break
+        eff += 1
+    return eff
+
+
 GAME_MS = 3 * 3600 * 1000  # an NBA game is over ~3h after tip even if ESPN has not marked stats official
 GAME_MIN = 145  # minutes from tip to the final buzzer on average (halftime and stoppages included)
 TIP_LAG = 5     # tip-off usually follows the scheduled time by a few minutes
@@ -270,6 +289,7 @@ def build(league, season_data, roster, sched, now_ms=None, injuries_doc=None):
     if not week or not any(m.get("live") for m in week["matchups"]):
         return {"active": False}
     cur_sp, end_sp, date_of = week_days(league, sched, None)
+    cur_sp = effective_sp(cur_sp, end_sp, sched, now_ms, date_of)
     rem = remaining_games(sched, cur_sp, end_sp, now_ms)
     if week_is_done(cur_sp, end_sp, rem):
         return {"active": False}  # week closed: final day, every game final
