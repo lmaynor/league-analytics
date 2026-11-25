@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deploy_retry.outputs.page_url || steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -96,6 +96,23 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         with:
           path: site
+      # deploy-pages intermittently fails to find the artifact it just uploaded
+      # (GitHub artifact API flake: 12 failed runs on Nov 22, 2026, all at this
+      # step, all with the build green). Retry once in the same run; the run
+      # only counts as failed when both attempts fail.
       - id: deploy
         if: steps.gate.outputs.run == 'true'
+        continue-on-error: true
         uses: actions/deploy-pages@v4
+      - name: Wait before deploy retry
+        if: steps.gate.outputs.run == 'true' && steps.deploy.outcome == 'failure'
+        run: sleep 20
+      - id: deploy_retry
+        if: steps.gate.outputs.run == 'true' && steps.deploy.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+      - name: Fail the run if both deploy attempts failed
+        if: steps.gate.outputs.run == 'true' && steps.deploy.outcome == 'failure' && steps.deploy_retry.outcome == 'failure'
+        run: |
+          echo "Deploy failed twice; the next scheduled run will try again."
+          exit 1
