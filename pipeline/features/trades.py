@@ -44,8 +44,15 @@ def extract_player_stat(p, season):
 
 
 def trade_key(team_a_id, team_b_id, ids_a, ids_b):
-    """Identity of a completed trade, independent of which ESPN id a source gave it."""
-    return (team_a_id, team_b_id, tuple(sorted(ids_a)), tuple(sorted(ids_b)))
+    """Identity of a completed trade, independent of which ESPN id a source
+    gave it and of which side the source listed first. Each side keeps its
+    own players bound to its team; the two sides are then ordered
+    canonically, so the same trade recorded in opposite orientations (the
+    communication broadcast sorts team ids, the transactions fallback did
+    not) maps to one key. A genuine reverse trade still keys differently,
+    because the players bound to each team swap."""
+    sides = [(team_a_id, tuple(sorted(ids_a))), (team_b_id, tuple(sorted(ids_b)))]
+    return tuple(sorted(sides))
 
 
 def match_trade_scoring_period(txs, when_ms):
@@ -315,7 +322,7 @@ def build(season, raw_dir):
             seen_trade_ids.add(t_id)
             sp = t.get("scoringPeriodId", 1)
             mp = get_mp(sp)
-            team_ids = list(set([it["fromTeamId"] for it in trade_items] + [it["toTeamId"] for it in trade_items]))
+            team_ids = sorted(set([it["fromTeamId"] for it in trade_items] + [it["toTeamId"] for it in trade_items]))
             if len(team_ids) == 2:
                 t_a, t_b = team_ids[0], team_ids[1]
                 to_a = [resolve_player(it["playerId"]) for it in trade_items if it["toTeamId"] == t_a]
@@ -368,13 +375,29 @@ def build(season, raw_dir):
         cur = by_id.get(entry["id"])
         if cur is None or supersedes(entry, cur):
             by_id[entry["id"]] = entry
+    # Nov 25, 2026: the Kyrie Irving / Michael Porter Jr. trade was recorded
+    # twice, once per source, in opposite orientations (the TRADE_ACCEPT
+    # transaction id at one timestamp, the communication topic id 47 ms
+    # later), and the old orientation-sensitive key let both survive. When
+    # two receipts tie on size and completeness, keep the canonically
+    # oriented one (lower team id first, as the broadcast path writes it).
+    def prefer(new, old):
+        if supersedes(new, old):
+            return True
+        if player_count(new) != player_count(old):
+            return False
+        if bool(old.get("incomplete")) != bool(new.get("incomplete")):
+            return False
+        return (new["team_a"]["id"] < new["team_b"]["id"]
+                and old["team_a"]["id"] > old["team_b"]["id"])
+
     by_key = {}
     for e in by_id.values():
         key = trade_key(e["team_a"]["id"], e["team_b"]["id"],
                         [p["id"] for p in e["players_a"]],
                         [p["id"] for p in e["players_b"]])
         cur = by_key.get(key)
-        if cur is None or supersedes(e, cur):
+        if cur is None or prefer(e, cur):
             by_key[key] = e
     completed_trades = sorted(by_key.values(), key=lambda e: e["date"] or 0)
     weeks_trades = {}
