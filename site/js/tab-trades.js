@@ -481,7 +481,7 @@ function renderTradeImpact(tA, tB, selA, selB, d, rosters) {
           <b>${esc(clsName)}</b>
           ${clsTags.map((tag) => `<span class="pill">${esc(tag)}</span>`).join(" ")}
         </div>
-        <span class="pill" style="font-weight:600;color:var(--color-ink)">${marginStr}</span>
+        <span class="pill" style="color:var(--color-ink)">${marginStr}</span>
       </div>
 
       <div class="receipt-quote-box">
@@ -564,7 +564,7 @@ function renderCompletedTradesList() {
           <b>${esc(cls.name || "Trade Receipt")}</b>
           ${tagsHtml}
         </div>
-        <button class="pill" style="cursor:pointer;padding:4px 10px;font-size:12px;background:var(--color-key-face);border:1px solid var(--color-rule-2);color:var(--text)" onclick='loadTradeInMachine(${t.team_a.id}, ${t.team_b.id}, ${pAIds}, ${pBIds})'>Load in Trade Machine →</button>
+        <button class="pill" style="cursor:pointer;background:var(--color-key-face);border:1px solid var(--color-rule-2);color:var(--text)" onclick='loadTradeInMachine(${t.team_a.id}, ${t.team_b.id}, ${pAIds}, ${pBIds})'>Load in Trade Machine →</button>
       </div>
 
       ${cls.roast ? `

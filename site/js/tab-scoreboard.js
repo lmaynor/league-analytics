@@ -381,7 +381,7 @@ function tradesDebrief(mp) {
       <div>
         <b>No trades completed in Week ${mp}</b>
       </div>
-      <button class="pill" style="cursor:pointer;padding:5px 12px;font-size:12px;background:var(--color-key-face);border:1px solid var(--color-rule-2);color:var(--text)" onclick="setSub('teams','trades');go('teams')">Trade Machine →</button>
+      <button class="pill" style="cursor:pointer;background:var(--color-key-face);border:1px solid var(--color-rule-2);color:var(--text)" onclick="setSub('teams','trades');go('teams')">Trade Machine →</button>
     </div>`;
   }
 
@@ -412,7 +412,7 @@ function tradesDebrief(mp) {
           <b>${esc(cls.name || "Trade Receipt")}</b>
           ${tagsHtml}
         </div>
-        <button class="pill" style="cursor:pointer;padding:4px 10px;font-size:12px;background:var(--color-key-face);border:1px solid var(--color-rule-2);color:var(--text)" onclick='loadTradeInMachine(${t.team_a.id}, ${t.team_b.id}, ${pAIds}, ${pBIds})'>Load in Trade Machine →</button>
+        <button class="pill" style="cursor:pointer;background:var(--color-key-face);border:1px solid var(--color-rule-2);color:var(--text)" onclick='loadTradeInMachine(${t.team_a.id}, ${t.team_b.id}, ${pAIds}, ${pBIds})'>Load in Trade Machine →</button>
       </div>
 
       ${cls.roast ? `
