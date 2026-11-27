@@ -1,6 +1,8 @@
 """Trade Machine feature: export rosters and analyze completed trades."""
+import datetime as dt
 import json
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from matchups import calendar_weeks
 from espn_client import ROOT
@@ -55,7 +57,31 @@ def trade_key(team_a_id, team_b_id, ids_a, ids_b):
     return tuple(sorted(sides))
 
 
-def match_trade_scoring_period(txs, when_ms):
+ET = ZoneInfo("America/New_York")
+
+
+def sp_for_timestamp(raw_dir, season, when_ms):
+    """Scoring period a timestamp falls in, from the schedule's day anchor.
+
+    Same anchor as matchups.calendar_weeks: the ET date of scoring period
+    1, plus one day per period. Returns None when the schedule is missing
+    or the timestamp falls outside the season's periods.
+    """
+    sched_path = raw_dir / str(season) / "proschedule.json"
+    if not sched_path.exists():
+        return None
+    games = json.loads(sched_path.read_text(encoding="utf-8"))["games"]
+    if not games:
+        return None
+    s0 = min(g["sp"] for g in games)
+    first = min(g["t"] for g in games if g["sp"] == s0)
+    d1 = dt.datetime.fromtimestamp(first / 1000, ET).date() - dt.timedelta(days=s0 - 1)
+    day = dt.datetime.fromtimestamp(when_ms / 1000, ET).date()
+    sp = (day - d1).days + 1
+    return sp if s0 <= sp <= max(g["sp"] for g in games) else None
+
+
+def match_trade_scoring_period(txs, when_ms, fallback_sp=None):
     """Scoring period of the trade a communication broadcast (type 244) belongs to.
 
     The broadcast lands within milliseconds of the trade's TRADE_UPHOLD
@@ -75,7 +101,14 @@ def match_trade_scoring_period(txs, when_ms):
     match = closest(trade_txs)
     if match is None:
         match = closest([t for t in txs if abs(t.get("proposedDate", 0) - when_ms) < 120000])
-    return match.get("scoringPeriodId", 1) if match else 1
+    if match:
+        return match.get("scoringPeriodId", 1)
+    # No transaction near the broadcast: the transactions window is thin
+    # and churns fast (3 records, none of them trades, when the Bam
+    # Adebayo trade was built on Nov 27, 2026), so defaulting to period 1
+    # filed that trade under Week 1. The broadcast date itself is the
+    # execution date; the caller passes the period it falls in.
+    return fallback_sp if fallback_sp is not None else 1
 
 
 def evaluate_trade(players_to_a, players_to_b):
@@ -296,7 +329,7 @@ def build(season, raw_dir):
                 continue
             seen_trade_ids.add(top_id)
             top_date = top.get("date", 0)
-            sp = match_trade_scoring_period(txs, top_date)
+            sp = match_trade_scoring_period(txs, top_date, sp_for_timestamp(raw_dir, season, top_date))
             mp = get_mp(sp)
             from_teams = {m["from"] for m in trade_msgs if m.get("from")}
             to_teams = {m["to"] for m in trade_msgs if m.get("to")}
@@ -375,6 +408,15 @@ def build(season, raw_dir):
         cur = by_id.get(entry["id"])
         if cur is None or supersedes(entry, cur):
             by_id[entry["id"]] = entry
+    # Filing follows the freshest sighting. Write-once freezes grades and
+    # players, but a receipt archived under the wrong week would stay
+    # wrong forever: the Adebayo trade above was first archived at Week 1.
+    # When the feed shows the same trade id again, adopt its week.
+    feed_by_id = {e["id"]: e for e in completed_trades}
+    for tid, stored in list(by_id.items()):
+        fresh = feed_by_id.get(tid)
+        if fresh is not None and fresh.get("mp") != stored.get("mp"):
+            by_id[tid] = {**stored, "mp": fresh["mp"]}
     # Nov 25, 2026: the Kyrie Irving / Michael Porter Jr. trade was recorded
     # twice, once per source, in opposite orientations (the TRADE_ACCEPT
     # transaction id at one timestamp, the communication topic id 47 ms
