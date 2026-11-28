@@ -193,6 +193,9 @@ code { font: 13px var(--font-mono); background: var(--color-paper-3); padding: 1
   select { min-height: 44px; }
   .cat { min-height: 44px; }
   .sw { min-height: 44px; }
+  button.pill { min-height: 44px; padding: 3px 16px; }
+  .tr-player { min-height: 44px; }
+  .tr-player input[type="checkbox"] { width: 20px; height: 20px; }
 }
 
 /* let grid children shrink instead of forcing the page wider than the screen */
@@ -744,4 +747,12 @@ td.trail { padding-top: 4px; padding-bottom: 4px; }
   .tr-cat-mid { min-width: 56px; gap: 4px; font-size: 11.5px; }
   .tr-cat-row .v-left, .tr-cat-row .v-right { gap: 4px; }
   .receipt-sides { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Phone layout pass: stacked receipt actions, no focus zoom, larger labels */
+@media (max-width: 700px) {
+  select, .ctl select { font-size: 16px; }
+  .pill, .outcome-pill { font-size: 12px; }
+  .receipt-top { flex-direction: column; align-items: stretch; }
+  .receipt-top .pill-btn { width: 100%; justify-content: center; }
 }
