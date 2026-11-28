@@ -381,7 +381,7 @@ function tradesDebrief(mp) {
       <div>
         <b>No trades completed in Week ${mp}</b>
       </div>
-      <button class="pill" style="cursor:pointer;background:var(--color-key-face);border:1px solid var(--color-rule-2);color:var(--text)" onclick="setSub('teams','trades');go('teams')">Trade Machine →</button>
+      <button class="pill pill-btn" onclick="setSub('teams','trades');go('teams')">Trade Machine →</button>
     </div>`;
   }
 
@@ -409,10 +409,10 @@ function tradesDebrief(mp) {
       <div class="receipt-top">
         <div class="receipt-meta">
           <span class="outcome-pill ${outcome}">${esc(outcomeLabel)}</span>
-          <b>${esc(cls.name || "Trade Receipt")}</b>
+          <span class="pill">${esc(cls.name || "Trade Receipt")}</span>
           ${tagsHtml}
         </div>
-        <button class="pill" style="cursor:pointer;background:var(--color-key-face);border:1px solid var(--color-rule-2);color:var(--text)" onclick='loadTradeInMachine(${t.team_a.id}, ${t.team_b.id}, ${pAIds}, ${pBIds})'>Load in Trade Machine →</button>
+        <button class="pill pill-btn" onclick='loadTradeInMachine(${t.team_a.id}, ${t.team_b.id}, ${pAIds}, ${pBIds})'>Load in Trade Machine →</button>
       </div>
 
       ${cls.roast ? `
