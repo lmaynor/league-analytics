@@ -45,12 +45,13 @@ h2 { font-size: 18px; margin: 28px 0 10px; }
 .card { background: var(--color-paper); border: 1px solid var(--color-rule); padding: 14px; box-shadow: var(--shadow-card); }
 @supports (corner-shape: bevel) {
   .card, .banner, .sw { border-radius: var(--cut-l) 4px var(--cut-l) 4px; corner-shape: bevel round bevel round; }
-  .chip, .pill { border-radius: var(--cut) 3px var(--cut) 3px; corner-shape: bevel round bevel round; }
+  .chip, .pill, .outcome-pill { border-radius: var(--cut) 3px var(--cut) 3px; corner-shape: bevel round bevel round; }
 }
 .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(380px, 100%), 1fr)); }
 .banner { background: var(--color-graphite); color: var(--color-graphite-ink); padding: 12px 16px; font: 600 16px var(--font-display); margin: 12px 0 14px; display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; letter-spacing: -0.01em; }
 .banner small { font: 400 13px var(--font-body); color: var(--color-graphite-muted); }
-.pill { display: inline-flex; align-items: center; padding: 3px 8px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; background: var(--color-paper-3); color: var(--muted); }
+.pill, .outcome-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border: 1px solid transparent; border-radius: var(--radius-input); font: 600 11px/1.2 var(--font-display); letter-spacing: .04em; text-transform: uppercase; background: var(--color-paper-3); color: var(--muted); white-space: nowrap; }
+.pill-btn { appearance: none; -webkit-appearance: none; cursor: pointer; background: var(--color-key-face); border-color: var(--color-rule-2); color: var(--text); }
 
 .sweatlist { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 8px; }
 .sw { flex: 0 0 auto; background: var(--color-paper); border: 1px solid var(--color-rule); padding: 9px 12px; cursor: pointer; }
@@ -220,7 +221,7 @@ footer ul { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 4px; font-
 .sw .nm b { color: var(--text); font-weight: 500; }
 
 /* Phone app shell */
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body { -webkit-tap-highlight-color: transparent; }
 button, .cat, .sw, .tile { touch-action: manipulation; }
 #tabbar { display: none; }
@@ -262,8 +263,8 @@ button, .cat, .sw, .tile { touch-action: manipulation; }
 
   /* inset grouped cards, plain rounding like a native list */
   .card, .banner, .sw { border-radius: 18px; }
-  @supports (corner-shape: bevel) { .card, .banner, .sw { border-radius: 18px; corner-shape: round; } }
-  .chip, .pill { border-radius: 99px; }
+  @supports (corner-shape: bevel) { .card, .banner, .sw { border-radius: 18px; corner-shape: round; } .chip, .pill, .outcome-pill { corner-shape: round; } }
+  .chip, .pill, .outcome-pill { border-radius: 99px; }
   h1 { font-size: 32px; letter-spacing: -0.035em; }
   .mu:active { transform: none; }
   .cat:active, .sw:active { background: var(--color-paper-3); }
@@ -608,18 +609,6 @@ td.trail { padding-top: 4px; padding-bottom: 4px; }
 }
 
 /* Outcome Pills */
-.outcome-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font: 600 11px var(--font-display);
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  padding: 3px 8px;
-  border-radius: var(--radius-input);
-  background: var(--color-paper-3);
-  color: var(--muted);
-}
 .outcome-pill.clear_win { background: var(--color-accent-wash); color: var(--color-accent-deep); }
 .outcome-pill.win_win { background: color-mix(in oklch, #16a34a 14%, transparent); color: #15803d; }
 .outcome-pill.slight_edge { background: color-mix(in oklch, #0284c7 14%, transparent); color: #0369a1; }
